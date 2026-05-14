@@ -278,22 +278,33 @@ const app = {
     try {
       const API_TOKEN = "hf_FiXRtJeirBYkH" + "pMlrQwTarfEVvwGHvxXuJ";
 
-      const MODEL = "mistralai/Mistral-7B-Instruct-v0.3";
+      const MODEL = "mistralai/Mistral-7B-Instruct-v0.2";
       let response, result;
       for (let i=0; i<3; i++) {
-        response = await fetch(`https://api-inference.huggingface.co/models/${MODEL}`, {
-          headers: { Authorization: `Bearer ${API_TOKEN}`, "Content-Type": "application/json" },
-          method: "POST", body: JSON.stringify({ inputs: prompt, parameters: { max_new_tokens: 60, temperature: 0.7 } })
+        response = await fetch(`https://api-inference.huggingface.co/v1/chat/completions`, {
+          headers: { 
+            Authorization: `Bearer ${API_TOKEN}`, 
+            "Content-Type": "application/json" 
+          },
+          method: "POST", 
+          body: JSON.stringify({ 
+            model: MODEL,
+            messages: [
+              { role: "system", content: "You are an expert productivity coach. Give ONE short, punchy, insightful sentence based on the user's habit data. No markdown, no filler." },
+              { role: "user", content: `Data: ${dataSummary}` }
+            ],
+            max_tokens: 60,
+            temperature: 0.7
+          })
         });
         result = await response.json();
         if (response.ok) break;
-        if (response.status === 503 && result.error?.includes('loading')) {
-          await new Promise(r => setTimeout(r, 10000));
-        } else throw new Error(result.error || 'API Error');
+        if (response.status === 503 || response.status === 429) {
+          await new Promise(r => setTimeout(r, 8000));
+        } else throw new Error(result.error?.message || result.error || 'API Error');
       }
 
-      let aiResponse = Array.isArray(result) ? result[0].generated_text.trim() : "Keep it up!";
-      aiResponse = aiResponse.split('\n')[0].replace(/<\|.*?\|>/g, '').trim();
+      const aiResponse = result.choices?.[0]?.message?.content?.trim() || "Keep winning!";
 
       this.openModal('AI Brain 🧠', `<div class="insight-card" style="flex-direction:column; align-items:center; text-align:center; padding:30px 20px;"><i data-lucide="sparkles" style="width:32px; height:32px; margin-bottom:12px; color:var(--accent);"></i><p style="font-size:1.1rem; line-height:1.6; font-weight:600;">"${aiResponse}"</p></div>`);
       lucide.createIcons();
