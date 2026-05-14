@@ -40,6 +40,7 @@ const app = {
     this.updateGreeting();
     this.setupListeners();
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    this.initNotifications();
   },
 
   today() { return new Date().toLocaleDateString(); },
@@ -582,6 +583,159 @@ const app = {
     const dl = document.createElement('a');
     dl.setAttribute("href", dataStr); dl.setAttribute("download", "tinywins_backup.json");
     dl.click();
+  },
+
+  /* ─── NOTIFICATIONS ─── */
+  initNotifications() {
+    this._notifTimers = [];
+    this.updateNotifUI();
+    if (Notification.permission === 'granted' && localStorage.getItem('tw_notif_enabled') === 'true') {
+      this.scheduleAllNotifications();
+    }
+    // Pre-fill saved times
+    const nm = document.getElementById('notif-morning');
+    const ne = document.getElementById('notif-evening');
+    const nw = document.getElementById('notif-water');
+    if (nm) nm.value = localStorage.getItem('tw_notif_morning') || '07:30';
+    if (ne) ne.value = localStorage.getItem('tw_notif_evening') || '21:00';
+    if (nw) nw.value = localStorage.getItem('tw_notif_water') || '2';
+  },
+  async enableNotifications() {
+    if (!('Notification' in window)) {
+      this.toast('Notifications not supported on this browser', '❌'); return;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') {
+      localStorage.setItem('tw_notif_enabled', 'true');
+      this.scheduleAllNotifications();
+      this.toast('Notifications enabled! 🔔', '🔔');
+    } else {
+      this.toast('Permission denied — enable in browser settings', '❌');
+    }
+    this.updateNotifUI();
+  },
+  disableNotifications() {
+    localStorage.setItem('tw_notif_enabled', 'false');
+    if (this._notifTimers) this._notifTimers.forEach(id => clearTimeout(id));
+    this._notifTimers = [];
+    this.toast('Reminders disabled 🔕', '🔕');
+    this.updateNotifUI();
+  },
+  updateNotifUI() {
+    const el = document.getElementById('notif-status');
+    if (!el) return;
+    const enabled = localStorage.getItem('tw_notif_enabled') === 'true';
+    const granted = Notification.permission === 'granted';
+    if (enabled && granted) {
+      el.textContent = '✅ Active'; el.style.color = 'var(--accent)';
+    } else if (!('Notification' in window)) {
+      el.textContent = '⚠️ Not supported'; el.style.color = 'var(--orange)';
+    } else {
+      el.textContent = '❌ Off'; el.style.color = 'var(--muted)';
+    }
+  },
+  scheduleAllNotifications() {
+    if (this._notifTimers) this._notifTimers.forEach(id => clearTimeout(id));
+    this._notifTimers = [];
+    if (localStorage.getItem('tw_notif_enabled') !== 'true') return;
+    const morning = localStorage.getItem('tw_notif_morning') || '07:30';
+    const evening = localStorage.getItem('tw_notif_evening') || '21:00';
+    const waterHrs = parseInt(localStorage.getItem('tw_notif_water') || '2');
+    this._scheduleAt(morning, '☀️ Good Morning, Murali!', 'Start your tiny wins! Log your wake time and set your mood for today.');
+    this._scheduleAt(evening, '🌙 Evening Check-in', 'How was today? Log your meals, journal thoughts, and mood before you sleep.');
+    const waterMs = waterHrs * 60 * 60 * 1000;
+    const wid = setInterval(() => {
+      this._showNotif('💧 Hydration Time!', `Drink a glass of water! You're crushing it today. 💪`);
+    }, waterMs);
+    this._notifTimers.push(wid);
+  },
+  _scheduleAt(timeStr, title, body) {
+    const [h, m] = timeStr.split(':').map(Number);
+    const now = new Date(), next = new Date();
+    next.setHours(h, m, 0, 0);
+    if (next <= now) next.setDate(next.getDate() + 1);
+    const id = setTimeout(() => {
+      this._showNotif(title, body);
+      this._scheduleAt(timeStr, title, body);
+    }, next - now);
+    this._notifTimers.push(id);
+  },
+  _showNotif(title, body) {
+    if (Notification.permission !== 'granted') return;
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(title, {
+          body, vibrate: [200, 100, 200],
+          icon: 'https://cloudkalakaar.github.io/tinywins/icons/icon-192.png',
+          badge: 'https://cloudkalakaar.github.io/tinywins/icons/icon-192.png',
+          tag: title, renotify: true
+        });
+      });
+    } else {
+      new Notification(title, { body });
+    }
+  },
+  saveNotifSettings() {
+    const m = document.getElementById('notif-morning')?.value;
+    const e = document.getElementById('notif-evening')?.value;
+    const w = document.getElementById('notif-water')?.value;
+    if (m) localStorage.setItem('tw_notif_morning', m);
+    if (e) localStorage.setItem('tw_notif_evening', e);
+    if (w) localStorage.setItem('tw_notif_water', w);
+    this.scheduleAllNotifications();
+    this.toast('Reminder times saved! ⏰', '⏰');
+  },
+
+  /* ─── HEALTH CONNECT GUIDES ─── */
+  openHealthGuide(platform) {
+    const guides = {
+      googlefit: {
+        title: '🏃 Google Fit / Health Connect',
+        steps: [
+          '1. Open <b>Health Connect</b> app on your Android phone.',
+          '2. Go to <b>Data & Privacy → Steps / Sleep</b>.',
+          '3. Note your daily step count and sleep hours.',
+          '4. Come back here and manually update the <b>Steps</b> and <b>Sleep</b> trackers.',
+          '💡 <em>Google Fit REST API integration coming soon for auto-sync!</em>'
+        ],
+        note: 'Health Connect web API is in early access — full auto-sync requires a native app.'
+      },
+      samsung: {
+        title: '⌚ Samsung Health',
+        steps: [
+          '1. Open <b>Samsung Health</b> → tap your profile.',
+          '2. Go to <b>Settings → Download Personal Data</b>.',
+          '3. Export as a CSV or JSON file.',
+          '4. Check your steps, sleep, and exercise values.',
+          '5. Manually enter them here in TinyWins.',
+          '💡 <em>Steps, sleep, and exercise can be entered via the tracker cards.</em>'
+        ],
+        note: 'Samsung does not expose a public API for web apps yet.'
+      },
+      apple: {
+        title: '🍎 Apple Health',
+        steps: [
+          '1. Open <b>Health</b> app on your iPhone.',
+          '2. Tap your profile photo → <b>Export Health Data</b>.',
+          '3. Save the ZIP file and open <b>export.xml</b>.',
+          '4. Look for HKQuantityTypeIdentifierStepCount and HKCategoryTypeIdentifierSleepAnalysis.',
+          '5. Enter those values manually in TinyWins.',
+          '💡 <em>Apple Health does not allow web app access — only native iOS apps.</em>'
+        ],
+        note: 'Apple Health requires iOS apps via HealthKit framework.'
+      }
+    };
+    const g = guides[platform];
+    const html = `
+      <div style="padding:4px 0">
+        <div style="margin-bottom:16px;">
+          ${g.steps.map(s => `<div style="padding:10px 0; border-bottom:1px solid var(--border); font-size:0.88rem; line-height:1.5;">${s}</div>`).join('')}
+        </div>
+        <div style="background:rgba(62,207,142,0.08); border:1px solid rgba(62,207,142,0.2); border-radius:12px; padding:12px; font-size:0.8rem; color:var(--muted);">
+          ℹ️ ${g.note}
+        </div>
+      </div>`;
+    this.openModal(g.title, html);
   }
 };
 

@@ -330,12 +330,69 @@
         <div class="setting-row"><label>Sleep (hrs)</label><input type="number" id="set-sleep" value="7" min="1" max="12"></div>
         <button class="action-btn save-settings-btn" onclick="app.saveSettings()">Save Targets</button>
       </div>
+
+      <!-- SMART REMINDERS -->
+      <div class="settings-group glass">
+        <h3>🔔 Smart Reminders</h3>
+        <p class="setting-desc">Get nudged to log your habits at the right time. Works as a PWA when added to home screen.</p>
+        <div class="notif-status-row">
+          <span class="setting-desc" style="margin:0;">Status: <strong id="notif-status">Checking...</strong></span>
+          <div style="display:flex;gap:8px;">
+            <button class="action-btn" onclick="app.enableNotifications()">Enable</button>
+            <button class="action-btn danger-btn" onclick="app.disableNotifications()">Disable</button>
+          </div>
+        </div>
+        <div class="setting-row"><label>☀️ Morning</label><input type="time" id="notif-morning" value="07:30"></div>
+        <div class="setting-row"><label>🌙 Evening</label><input type="time" id="notif-evening" value="21:00"></div>
+        <div class="setting-row"><label>💧 Water (every hrs)</label><input type="number" id="notif-water" value="2" min="1" max="8"></div>
+        <button class="action-btn save-settings-btn" onclick="app.saveNotifSettings()">Save Reminder Times</button>
+      </div>
+
+      <!-- HEALTH CONNECT -->
+      <div class="settings-group glass">
+        <h3>🏥 Health Connect</h3>
+        <p class="setting-desc">See what health apps can sync with TinyWins.</p>
+
+        <div class="health-platform-card" onclick="app.openHealthGuide('googlefit')">
+          <span class="hpc-icon">🏃</span>
+          <div>
+            <strong>Google Fit / Health Connect</strong>
+            <p>Steps, sleep & calories on Android</p>
+          </div>
+          <span class="hpc-badge hpc-partial">Guide</span>
+        </div>
+
+        <div class="health-platform-card" onclick="app.openHealthGuide('samsung')">
+          <span class="hpc-icon">⌚</span>
+          <div>
+            <strong>Samsung Health</strong>
+            <p>Steps, sleep, heart rate export</p>
+          </div>
+          <span class="hpc-badge hpc-partial">Guide</span>
+        </div>
+
+        <div class="health-platform-card" onclick="app.openHealthGuide('apple')">
+          <span class="hpc-icon">🍎</span>
+          <div>
+            <strong>Apple Health</strong>
+            <p>Export and import via CSV</p>
+          </div>
+          <span class="hpc-badge hpc-manual">Manual</span>
+        </div>
+
+        <div class="hc-info-note glass">
+          <i data-lucide="info" style="width:16px;height:16px;flex-shrink:0;color:var(--accent);"></i>
+          <p>Full auto-sync needs a native Android app. For now, tap a card above for a step-by-step guide to pull data into TinyWins.</p>
+        </div>
+      </div>
+
       <div class="settings-group glass">
         <h3>Data</h3>
         <button class="action-btn danger-btn" onclick="app.clearTodayData()">Clear Today's Data</button>
         <button class="action-btn danger-btn" onclick="app.exportData()">Export All Data (JSON)</button>
       </div>
     </main>
+
 
     <nav class="bottom-nav">
       <button id="nav-dashboard" class="nav-item active" onclick="app.switchTab('dashboard')">

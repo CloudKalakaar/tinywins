@@ -603,3 +603,37 @@ h1 {
 
 .hidden { display:none !important; }
 @media (max-width:360px) { .tracker-grid { grid-template-columns:1fr; } }
+
+/* ══ NOTIFICATIONS ══ */
+.notif-status-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border); margin-bottom: 12px;
+}
+
+/* ══ HEALTH CONNECT ══ */
+.health-platform-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 12px; border-radius: 14px; cursor: pointer;
+  border: 1px solid var(--border); background: rgba(255,255,255,0.02);
+  margin-bottom: 10px; transition: background 0.2s;
+}
+.health-platform-card:active { background: rgba(255,255,255,0.06); }
+.health-platform-card > div { flex: 1; }
+.health-platform-card strong { display: block; font-size: 0.9rem; margin-bottom: 2px; }
+.health-platform-card p { font-size: 0.78rem; color: var(--muted); margin: 0; }
+.hpc-icon { font-size: 1.6rem; }
+.hpc-badge {
+  font-size: 0.68rem; font-weight: 700; padding: 4px 9px;
+  border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.hpc-partial { background: rgba(56,189,248,0.15); color: var(--blue); }
+.hpc-manual  { background: rgba(249,115,22,0.15); color: var(--orange); }
+
+.hc-info-note {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px; border-radius: 12px; margin-top: 12px;
+  background: rgba(62,207,142,0.06); border: 1px solid rgba(62,207,142,0.15);
+}
+.hc-info-note p { font-size: 0.8rem; color: var(--muted); line-height: 1.5; margin: 0; }
+
