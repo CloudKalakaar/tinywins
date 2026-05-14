@@ -270,44 +270,148 @@ const app = {
     this.toast(`${label} logged! ⏰`, '⏰');
   },
 
-  /* ─── MANUAL TIME INPUT ─── */
-  openTimeInput(id, label) {
-    // Pre-fill with current logged value or now
-    const cur = this.wins[id];
-    const now = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});
-    // Convert stored 12h time to 24h for input[type=time]
-    const toInput = (t12) => {
-      if (!t12) return now;
-      const [time, mod] = t12.split(' ');
-      if (!mod) return t12; // already 24h
-      let [h, m] = time.split(':').map(Number);
-      if (mod === 'PM' && h !== 12) h += 12;
-      if (mod === 'AM' && h === 12) h = 0;
-      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-    };
-    this.openModal(`Set ${label}`, `
-      <div style="display:flex;flex-direction:column;gap:16px">
-        <p style="color:var(--muted);font-size:.85rem">Pick a time or type it manually:</p>
-        <input type="time" id="manual-time-input" value="${toInput(cur)}"
-          style="background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);
-                 padding:16px;border-radius:14px;font-size:1.1rem;font-family:var(--body);
-                 width:100%;text-align:center;color-scheme:dark;">
-        <button class="action-btn primary" onclick="app.saveManualTime('${id}')" style="width:100%">Confirm</button>
+  /* ─── MODERN CLOCK PICKER ─── */
+  openClockPicker(id, label, initialTime, onSave) {
+    let [timePart, ampm] = (initialTime || '06:00 AM').split(' ');
+    let [h, m] = timePart.split(':').map(Number);
+    
+    this.clockState = { id, label, h, m, ampm, mode: 'hours', onSave };
+    
+    this.openModal(label, `
+      <div class="clock-container">
+        <div class="clock-display">
+          <span id="clk-h" onclick="app.setClockMode('hours')">${h}</span>
+          <span>:</span>
+          <span id="clk-m" class="inactive" onclick="app.setClockMode('minutes')">${String(m).padStart(2,'0')}</span>
+        </div>
+        
+        <div class="clock-face" id="clock-face">
+          <div class="clock-center"></div>
+          <div id="clock-hand" class="clock-hand"></div>
+          ${this.renderClockNumbers()}
+        </div>
+
+        <div class="ampm-toggle">
+          <button id="ampm-am" class="ampm-btn ${ampm==='AM'?'active':''}" onclick="app.setClockAMPM('AM')">AM</button>
+          <button id="ampm-pm" class="ampm-btn ${ampm==='PM'?'active':''}" onclick="app.setClockAMPM('PM')">PM</button>
+        </div>
+
+        <button class="action-btn primary" style="width:100%" onclick="app.confirmClockTime()">Confirm Time</button>
       </div>
     `);
-    setTimeout(() => document.getElementById('manual-time-input')?.focus(), 100);
+
+    this.initClockInteractions();
+    this.updateClockHand();
   },
 
-  saveManualTime(id) {
-    const val = document.getElementById('manual-time-input')?.value;
-    if (!val) return;
-    const [h, m] = val.split(':').map(Number);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const h12 = h % 12 || 12;
-    this.wins[id] = `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
-    this.save(); this.updateUI(); this.closeModal();
-    this.toast(`${id === 'bedtime' ? 'Bed' : 'Wake'} time set! ✅`, '🕐');
+  renderClockNumbers() {
+    let html = '';
+    const isHours = this.clockState.mode === 'hours';
+    const limit = isHours ? 12 : 60;
+    const step = isHours ? 1 : 5;
+    
+    for (let i = step; i <= limit; i += step) {
+      const angle = (i * (360 / limit)) - 90;
+      const rad = angle * (Math.PI / 180);
+      const x = 50 + 40 * Math.cos(rad);
+      const y = 50 + 40 * Math.sin(rad);
+      const val = isHours ? i : (i === 60 ? '00' : String(i).padStart(2,'0'));
+      html += `<div class="clock-number" style="left:${x}%; top:${y}%">${val}</div>`;
+    }
+    return html;
   },
+
+  initClockInteractions() {
+    const face = document.getElementById('clock-face');
+    if (!face) return;
+
+    const handleMove = (e) => {
+      if (this.clockDragging) {
+        const rect = face.getBoundingClientRect();
+        const touch = e.touches ? e.touches[0] : e;
+        const x = touch.clientX - (rect.left + rect.width / 2);
+        const y = touch.clientY - (rect.top + rect.height / 2);
+        let angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
+        if (angle < 0) angle += 360;
+
+        if (this.clockState.mode === 'hours') {
+          let h = Math.round(angle / 30);
+          if (h === 0) h = 12;
+          if (h > 12) h = 12;
+          this.clockState.h = h;
+          document.getElementById('clk-h').textContent = h;
+        } else {
+          let m = Math.round(angle / 6) % 60;
+          this.clockState.m = m;
+          document.getElementById('clk-m').textContent = String(m).padStart(2,'0');
+        }
+        this.updateClockHand();
+      }
+    };
+
+    face.addEventListener('mousedown', () => this.clockDragging = true);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', () => {
+      if (this.clockDragging && this.clockState.mode === 'hours') {
+        this.setClockMode('minutes');
+      }
+      this.clockDragging = false;
+    });
+
+    face.addEventListener('touchstart', (e) => { e.preventDefault(); this.clockDragging = true; });
+    face.addEventListener('touchmove', (e) => { e.preventDefault(); handleMove(e); });
+    face.addEventListener('touchend', () => {
+      if (this.clockDragging && this.clockState.mode === 'hours') {
+        this.setClockMode('minutes');
+      }
+      this.clockDragging = false;
+    });
+  },
+
+  setClockMode(mode) {
+    this.clockState.mode = mode;
+    document.getElementById('clk-h').classList.toggle('inactive', mode !== 'hours');
+    document.getElementById('clk-m').classList.toggle('inactive', mode !== 'minutes');
+    const face = document.getElementById('clock-face');
+    if (face) {
+      const numbers = face.querySelectorAll('.clock-number');
+      numbers.forEach(n => n.remove());
+      face.insertAdjacentHTML('beforeend', this.renderClockNumbers());
+    }
+    this.updateClockHand();
+  },
+
+  setClockAMPM(ampm) {
+    this.clockState.ampm = ampm;
+    document.getElementById('ampm-am').classList.toggle('active', ampm === 'AM');
+    document.getElementById('ampm-pm').classList.toggle('active', ampm === 'PM');
+  },
+
+  updateClockHand() {
+    const hand = document.getElementById('clock-hand');
+    if (!hand) return;
+    const val = this.clockState.mode === 'hours' ? this.clockState.h : this.clockState.m;
+    const limit = this.clockState.mode === 'hours' ? 12 : 60;
+    const angle = val * (360 / limit);
+    hand.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+  },
+
+  confirmClockTime() {
+    const time = `${this.clockState.h}:${String(this.clockState.m).padStart(2,'0')} ${this.clockState.ampm}`;
+    this.clockState.onSave(time);
+    this.closeModal();
+  },
+
+  openTimeInput(id, label) {
+    this.openClockPicker(id, label, this.wins[id], (time) => {
+      this.wins[id] = time;
+      this.save();
+      this.updateUI();
+      this.toast(`${id === 'bedtime' ? 'Bed' : 'Wake'} time set! ✅`, '🕐');
+    });
+  },
+
+  /* ─── STEPS INPUT ─── */
 
   /* ─── SLEEP CALCULATOR ─── */
   calcSleep(wakeStr, bedStr) {
@@ -397,14 +501,9 @@ const app = {
             <i data-lucide="clock"></i> Now
           </button>
           <button id="meal-time-custom" class="meal-time-chip" onclick="app.selectMealTimeMode('custom')">
-            <i data-lucide="pencil"></i> Custom
+            <i data-lucide="pencil"></i> <span id="custom-time-val">Custom</span>
           </button>
         </div>
-        <input type="time" id="meal-time-input" value="${nowInput}"
-          class="meal-time-picker hidden"
-          style="background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);
-                 padding:13px;border-radius:14px;font-size:1rem;font-family:var(--body);
-                 width:100%;color-scheme:dark;">
 
         <button class="action-btn primary" onclick="app.addMeal()">Add Meal</button>
       </div>
@@ -427,16 +526,20 @@ const app = {
   selectMealTimeMode(mode) {
     const nowBtn    = document.getElementById('meal-time-now');
     const customBtn = document.getElementById('meal-time-custom');
-    const picker    = document.getElementById('meal-time-input');
     if (mode === 'now') {
       nowBtn?.classList.add('active');
       customBtn?.classList.remove('active');
-      picker?.classList.add('hidden');
+      this.customMealTime = null;
+      const el = document.getElementById('custom-time-val');
+      if (el) el.textContent = 'Custom';
     } else {
-      customBtn?.classList.add('active');
-      nowBtn?.classList.remove('active');
-      picker?.classList.remove('hidden');
-      picker?.focus();
+      this.openClockPicker('meal', 'Meal Time', this.customMealTime || new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), (time) => {
+        this.customMealTime = time;
+        customBtn?.classList.add('active');
+        nowBtn?.classList.remove('active');
+        const el = document.getElementById('custom-time-val');
+        if (el) el.textContent = time;
+      });
     }
   },
 
@@ -445,22 +548,10 @@ const app = {
     const item = document.getElementById('meal-name')?.value.trim();
     if (!item) { this.toast('Enter a meal name!','⚠️'); return; }
 
-    // Resolve time
-    const nowBtn  = document.getElementById('meal-time-now');
-    const isNow   = nowBtn?.classList.contains('active');
-    let time;
-    if (isNow) {
-      time = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-    } else {
-      const raw = document.getElementById('meal-time-input')?.value;
-      if (!raw) { this.toast('Pick a time!','⚠️'); return; }
-      const [h,m] = raw.split(':').map(Number);
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      const h12  = h % 12 || 12;
-      time = `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
-    }
+    const time = this.customMealTime || new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 
     this.wins.food.push({ type, item, time });
+    this.customMealTime = null; // reset
     this.save(); this.updateUI(); this.openMealTracker();
     this.toast('Meal added! 🍏','🍽️');
   },
