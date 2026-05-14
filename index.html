@@ -34,18 +34,12 @@
   <!-- ═══════════ ONBOARDING SCREEN ═══════════ -->
   <div id="onboarding" class="onboarding-overlay hidden">
     <div class="onboarding-card">
-      <!-- Logo -->
       <div class="onboarding-logo">
         <svg width="90" height="90" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- Spark left amber -->
           <rect x="62" y="18" width="14" height="28" rx="7" fill="#fbbf24" transform="rotate(-35 62 18)"/>
-          <!-- Spark center orange -->
           <rect x="93" y="8" width="14" height="30" rx="7" fill="#f97316"/>
-          <!-- Spark right teal -->
           <rect x="124" y="18" width="14" height="28" rx="7" fill="#3ecf8e" transform="rotate(35 124 18)"/>
-          <!-- t letter -->
           <path d="M72 52 H128 V68 H112 V148 Q112 162 98 162 Q84 162 84 148 V68 H72 Z" fill="white"/>
-          <!-- checkmark -->
           <path d="M108 75 L122 95 L148 60" stroke="#3ecf8e" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
         </svg>
       </div>
@@ -67,7 +61,6 @@
     <!-- ═══════════════════════ HEADER ═══════════════════════ -->
     <header class="app-header">
       <div class="header-left">
-        <!-- Brand logo small -->
         <div class="header-brand">
           <svg width="28" height="28" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="62" y="18" width="14" height="28" rx="7" fill="#fbbf24" transform="rotate(-35 62 18)"/>
@@ -87,6 +80,9 @@
         </div>
       </div>
       <div class="header-right">
+        <button id="insights-btn" class="icon-btn" onclick="app.openInsights()" title="Smart Insights">
+          <i data-lucide="brain"></i>
+        </button>
         <div id="streak-badge" class="streak-badge" title="Current Streak">
           <i data-lucide="flame"></i>
           <span id="streak-count">0</span>
@@ -98,7 +94,6 @@
       </div>
     </header>
 
-    <!-- ═══════════════════════ AFFIRMATION BANNER ═══════════════════════ -->
     <div class="affirmation-banner glass">
       <div class="affirmation-inner">
         <p id="user-greeting" class="user-greeting">Hey there! 👋</p>
@@ -107,10 +102,7 @@
       <button onclick="app.setRandomAffirmation()" class="refresh-btn"><i data-lucide="refresh-cw"></i></button>
     </div>
 
-    <!-- ═══════════════════════ MAIN CONTENT ═══════════════════════ -->
     <main id="view-dashboard">
-
-      <!-- Progress Ring -->
       <section class="progress-section glass">
         <div class="progress-info">
           <p class="progress-label">Daily Score</p>
@@ -135,10 +127,29 @@
         </div>
       </section>
 
-      <!-- ─── TRACKER GRID ─── -->
       <section id="tracker-grid" class="tracker-grid">
+        <!-- Focus Timer -->
+        <div class="tracker-card glass" data-id="focus">
+          <div class="card-top">
+            <div class="card-icon" style="background:rgba(249,115,22,0.15); color:var(--orange);"><i data-lucide="timer"></i></div>
+            <span class="win-check hidden"><i data-lucide="check"></i></span>
+          </div>
+          <h3>Focus</h3>
+          <p class="value" id="val-focus">0 min</p>
+          <button class="action-btn" onclick="app.openFocusTimer()">Start Timer</button>
+        </div>
 
-        <!-- Wake -->
+        <!-- Fasting -->
+        <div class="tracker-card glass" data-id="fasting">
+          <div class="card-top">
+            <div class="card-icon" style="background:rgba(129,140,248,0.15); color:var(--purple);"><i data-lucide="zap"></i></div>
+            <span class="win-check hidden"><i data-lucide="check"></i></span>
+          </div>
+          <h3>Fasting</h3>
+          <p class="value" id="val-fasting">0h</p>
+          <button class="action-btn" id="fasting-btn" onclick="app.toggleFasting()">Start Fast</button>
+        </div>
+
         <div class="tracker-card glass" data-id="wake">
           <div class="card-top">
             <div class="card-icon icon-wake"><i data-lucide="sunrise"></i></div>
@@ -152,7 +163,6 @@
           </div>
         </div>
 
-        <!-- Bed Time -->
         <div class="tracker-card glass" data-id="bedtime">
           <div class="card-top">
             <div class="card-icon icon-sleep"><i data-lucide="moon"></i></div>
@@ -166,7 +176,6 @@
           </div>
         </div>
 
-        <!-- Sleep (calculated) -->
         <div class="tracker-card glass full-width-card" data-id="sleep">
           <div class="card-top">
             <div class="card-icon icon-meditation"><i data-lucide="clock"></i></div>
@@ -179,7 +188,6 @@
           </div>
         </div>
 
-        <!-- Meditation -->
         <div class="tracker-card glass" data-id="meditation">
           <div class="card-top">
             <div class="card-icon icon-meditation"><i data-lucide="brain"></i></div>
@@ -193,7 +201,6 @@
           </div>
         </div>
 
-        <!-- Water -->
         <div class="tracker-card glass" data-id="water">
           <div class="card-top">
             <div class="card-icon icon-water"><i data-lucide="droplets"></i></div>
@@ -205,7 +212,6 @@
           <button class="action-btn" onclick="app.adjustValue('water', 1)">+ Glass</button>
         </div>
 
-        <!-- Exercise -->
         <div class="tracker-card glass" data-id="exercise">
           <div class="card-top">
             <div class="card-icon icon-exercise"><i data-lucide="dumbbell"></i></div>
@@ -219,7 +225,6 @@
           </div>
         </div>
 
-        <!-- Steps -->
         <div class="tracker-card glass" data-id="steps">
           <div class="card-top">
             <div class="card-icon icon-steps"><i data-lucide="footprints"></i></div>
@@ -231,7 +236,6 @@
           <button class="action-btn" onclick="app.openStepsInput()">Update</button>
         </div>
 
-        <!-- Meals -->
         <div class="tracker-card glass" data-id="food">
           <div class="card-top">
             <div class="card-icon icon-food"><i data-lucide="utensils"></i></div>
@@ -242,7 +246,6 @@
           <button class="action-btn" onclick="app.openMealTracker()">Manage</button>
         </div>
 
-        <!-- Journal -->
         <div class="tracker-card glass" data-id="journal">
           <div class="card-top">
             <div class="card-icon icon-journal"><i data-lucide="notebook-pen"></i></div>
@@ -252,32 +255,24 @@
           <p class="value journal-preview" id="val-journal">Add a note…</p>
           <button class="action-btn" onclick="app.openJournal()">Write</button>
         </div>
-
       </section>
 
-      <!-- ─── BADGES ─── -->
       <section class="badges-section">
         <h2 class="section-title">Your Badges</h2>
         <div id="badges-grid" class="badges-grid"></div>
       </section>
-
     </main>
 
-    <!-- ═══════════════════════ MONTHLY VIEW ═══════════════════════ -->
     <main id="view-monthly" class="hidden">
       <div class="month-header">
         <button onclick="app.changeMonth(-1)" class="month-nav-btn"><i data-lucide="chevron-left"></i></button>
         <h2 id="month-label">May 2026</h2>
         <button onclick="app.changeMonth(1)" class="month-nav-btn"><i data-lucide="chevron-right"></i></button>
       </div>
-
-      <!-- Day labels -->
       <div class="calendar-day-labels">
         <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
       </div>
-
       <div id="calendar-grid" class="calendar-grid"></div>
-
       <div class="month-stats-grid">
         <div class="month-stat-card glass">
           <i data-lucide="flame"></i>
@@ -300,8 +295,6 @@
           <label>Active Days</label>
         </div>
       </div>
-
-      <!-- Monthly habit bars -->
       <div class="monthly-habits glass">
         <h3>Habit Breakdown</h3>
         <div class="habit-bar-row"><label>Wake Up</label><div class="habit-bar"><div id="mhb-wake" class="hb-fill hb-wake"></div></div><span id="mhp-wake">0%</span></div>
@@ -313,9 +306,28 @@
       </div>
     </main>
 
-    <!-- ═══════════════════════ SETTINGS ═══════════════════════ -->
     <main id="view-settings" class="hidden settings-view">
       <h2 class="section-title">Settings</h2>
+      
+      <div class="settings-group glass">
+        <h3>AI Brain Settings</h3>
+        <p class="setting-desc">Enter your Hugging Face API Token to enable Smart Insights.</p>
+        <input type="password" id="hf-token-input" placeholder="hf_..." 
+               class="theme-select" style="margin-bottom:10px;"
+               onchange="app.saveHFToken()">
+        <p class="setting-desc" style="font-size: 0.7rem;">Your token is saved locally on this device only.</p>
+      </div>
+
+      <div class="settings-group glass">
+        <h3>Theme</h3>
+        <p class="setting-desc">Choose a theme to personalize your experience.</p>
+        <select id="theme-select" class="theme-select" onchange="app.changeTheme()">
+          <option value="default">Default Navy</option>
+          <option value="amoled" id="theme-amoled">Pure AMOLED</option>
+          <option value="sunset" id="theme-sunset">Sunset Orange</option>
+        </select>
+      </div>
+
       <div class="settings-group glass">
         <h3>Daily Targets</h3>
         <div class="setting-row"><label>Meditation (min)</label><input type="number" id="set-meditation" value="20" min="1"></div>
@@ -326,26 +338,12 @@
         <button class="action-btn save-settings-btn" onclick="app.saveSettings()">Save Targets</button>
       </div>
       <div class="settings-group glass">
-        <h3>Health Sync</h3>
-        <p class="setting-desc">Connect to Google Fit to sync your steps and sleep data automatically.</p>
-        <div class="sync-status" id="sync-status">
-          <i data-lucide="unplug"></i>
-          <span>Not Connected</span>
-        </div>
-        <button class="action-btn primary" id="btn-sync-health" onclick="app.syncHealthData()">
-          <i data-lucide="refresh-cw"></i> Sync with Google Fit
-        </button>
-        <p id="last-sync-time" class="last-sync-label"></p>
-      </div>
-
-      <div class="settings-group glass">
         <h3>Data</h3>
         <button class="action-btn danger-btn" onclick="app.clearTodayData()">Clear Today's Data</button>
         <button class="action-btn danger-btn" onclick="app.exportData()">Export All Data (JSON)</button>
       </div>
     </main>
 
-    <!-- ═══════════════════════ BOTTOM NAV ═══════════════════════ -->
     <nav class="bottom-nav">
       <button id="nav-dashboard" class="nav-item active" onclick="app.switchTab('dashboard')">
         <i data-lucide="layout-dashboard"></i><span>Today</span>
@@ -359,7 +357,6 @@
     </nav>
   </div>
 
-  <!-- ═══════════════════════ MODAL ═══════════════════════ -->
   <div id="modal-container" class="modal-overlay hidden" onclick="app.handleModalOverlayClick(event)">
     <div class="modal-content glass">
       <header class="modal-header">
@@ -370,7 +367,6 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════ TOAST ═══════════════════════ -->
   <div id="toast" class="toast hidden">
     <span id="toast-icon">🚀</span>
     <span id="toast-msg">Win logged!</span>
