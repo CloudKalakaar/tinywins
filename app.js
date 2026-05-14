@@ -53,15 +53,22 @@ const app = {
 
   ensureDay(k) {
     if (!this.state.history[k]) {
-      this.state.history[k] = {
-        mood: '😐', journal: '', food: [], water: 0, steps: 0, meditation: 0, exercise: 0,
-        wake: '', bedtime: '', sleep: 0, focus: 0, fasting: 0, _score: 0
-      };
+      this.state.history[k] = {};
     }
     const d = this.state.history[k];
+    if (d.mood === undefined) d.mood = '😐';
+    if (d.journal === undefined) d.journal = '';
+    if (!Array.isArray(d.food)) d.food = [];
+    if (d.water === undefined) d.water = 0;
+    if (d.steps === undefined) d.steps = 0;
+    if (d.meditation === undefined) d.meditation = 0;
+    if (d.exercise === undefined) d.exercise = 0;
+    if (d.wake === undefined) d.wake = '';
+    if (d.bedtime === undefined) d.bedtime = '';
+    if (d.sleep === undefined) d.sleep = 0;
     if (d.focus === undefined) d.focus = 0;
     if (d.fasting === undefined) d.fasting = 0;
-    if (!d.food) d.food = [];
+    if (d._score === undefined) d._score = 0;
   },
 
   save() { 
@@ -136,8 +143,8 @@ const app = {
     this.setCard('water', d.water >= t.water);
     this.setCard('exercise', d.exercise >= t.exercise);
     this.setCard('steps', d.steps >= t.steps);
-    this.setCard('food', d.food.length > 0);
-    this.setCard('journal', d.journal.length > 10);
+    this.setCard('food', d.food && d.food.length > 0);
+    this.setCard('journal', d.journal && d.journal.length > 10);
     this.setCard('focus', d.focus >= 25);
     this.setCard('fasting', d.fasting >= 16);
 
@@ -168,7 +175,7 @@ const app = {
     // Food preview
     const fp = document.getElementById('food-preview');
     if (fp) {
-      if (!d.food.length) fp.innerHTML = '<p class="no-data">No meals yet</p>';
+      if (!d.food || !d.food.length) fp.innerHTML = '<p class="no-data">No meals yet</p>';
       else {
         fp.innerHTML = d.food.map(f => `<div class="food-item-mini"><span>${f.type}</span><strong>${f.time}</strong></div>`).join('');
       }
@@ -200,8 +207,8 @@ const app = {
     if (d.water >= t.water) s++;
     if (d.exercise >= t.exercise) s++;
     if (d.steps >= t.steps) s++;
-    if (d.food.length > 0) s++;
-    if (d.journal.length > 10) s++;
+    if (d.food && d.food.length > 0) s++;
+    if (d.journal && d.journal.length > 10) s++;
     if (d.focus >= 25) s++;
     if (d.fasting >= 16) s++;
     d._score = s;
@@ -577,5 +584,5 @@ const app = {
   }
 };
 
-app.init();
 window.app = app;
+try { app.init(); } catch(e) { console.error("Init Error:", e); }
