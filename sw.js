@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tinywins-v2';
+const CACHE_NAME = 'tinywins-v3';
 const ASSETS = [
     './',
     './index.html',
@@ -34,6 +34,9 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+    // Only intercept local assets, bypass for external APIs (CORS fix)
+    if (!event.request.url.startsWith(self.location.origin)) return;
+
     event.respondWith(
         caches.match(event.request).then((response) => {
             return response || fetch(event.request);
