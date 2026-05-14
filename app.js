@@ -1,9 +1,9 @@
-/* TinyWins App Logic */
+/* TinyWins App Logic - Full Version */
 const BADGES = [
   { id:'first_win',   icon:'🌱', label:'First Win',     check: h => Object.keys(h).length >= 1 },
   { id:'streak_3',    icon:'🔥', label:'3-Day Streak',  check: (h,s) => s >= 3 },
   { id:'streak_7',    icon:'⚡', label:'Week Streak',   check: (h,s) => s >= 7 },
-  { id:'perfect_day', icon:'⭐', label:'Perfect Day',   check: h => Object.values(h).some(d=>d._score>=8) },
+  { id:'perfect_day', icon:'⭐', label:'Perfect Day',   check: h => Object.values(h).some(d=>d._score>=10) },
 ];
 
 const MOODS = [
@@ -58,10 +58,10 @@ const app = {
         wake: '', bedtime: '', sleep: 0, focus: 0, fasting: 0, _score: 0
       };
     }
-    // Migration for new fields
     const d = this.state.history[k];
     if (d.focus === undefined) d.focus = 0;
     if (d.fasting === undefined) d.fasting = 0;
+    if (!d.food) d.food = [];
   },
 
   save() { 
@@ -106,7 +106,7 @@ const app = {
 
     // Progress
     const score = this.calcScore(k);
-    const total = 10; // 10 potential wins
+    const total = 10;
     this.setText('progress-stats', `${score}/${total} wins`);
     const pct = Math.round((score/total)*100);
     this.setText('progress-percent', `${pct}%`);
@@ -174,7 +174,11 @@ const app = {
       }
     }
 
-    // Badges
+    // Monthly View Update
+    if (!document.getElementById('view-monthly').classList.contains('hidden')) {
+      this.renderCalendar();
+    }
+
     this.renderBadges();
     
     // Fill Settings
@@ -295,7 +299,7 @@ const app = {
     }
   },
 
-  /* ─── MODALS ─── */
+  /* ─── MODALS & PICKERS ─── */
   openModal(title, bodyHtml) {
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-body').innerHTML = bodyHtml;
@@ -304,6 +308,85 @@ const app = {
   },
   closeModal() { document.getElementById('modal-container').classList.add('hidden'); },
   handleModalOverlayClick(e) { if(e.target.id === 'modal-container') this.closeModal(); },
+
+  openMoodPicker() {
+    const k = this.state.viewDate.toLocaleDateString();
+    const curr = this.state.history[k].mood;
+    const html = `<div class="mood-grid">` + MOODS.map(m => `
+      <button class="mood-btn ${m.emoji===curr?'selected':''}" onclick="app.setMood('${m.emoji}')">
+        <span>${m.emoji}</span><small>${m.label}</small>
+      </button>
+    `).join('') + `</div>`;
+    this.openModal('How are you feeling?', html);
+  },
+  setMood(m) {
+    const k = this.state.viewDate.toLocaleDateString();
+    this.state.history[k].mood = m;
+    this.save(); this.updateUI(); this.closeModal(); this.haptic();
+  },
+
+  openMealTracker() {
+    const k = this.state.viewDate.toLocaleDateString();
+    const d = this.state.history[k];
+    const renderMeals = () => `
+      <div class="meal-input-group">
+        <select id="meal-type"><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option></select>
+        <input type="text" id="meal-desc" placeholder="What did you eat?">
+        <button class="action-btn primary" onclick="app.addMeal()">Add Meal</button>
+      </div>
+      <div class="meal-list">${d.food.map((f,i) => `
+        <div class="meal-item">
+          <div class="meal-item-info"><strong>${f.type}</strong><small>${f.desc}</small></div>
+          <button class="del-btn" onclick="app.deleteMeal(${i})"><i data-lucide="trash-2"></i></button>
+        </div>`).join('')}
+      </div>`;
+    this.openModal('Meals', renderMeals());
+  },
+  addMeal() {
+    const k = this.state.viewDate.toLocaleDateString();
+    const type = document.getElementById('meal-type').value;
+    const desc = document.getElementById('meal-desc').value.trim() || 'Logged';
+    this.state.history[k].food.push({ type, desc, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
+    this.save(); this.updateUI(); this.openMealTracker(); this.haptic();
+  },
+  deleteMeal(i) {
+    const k = this.state.viewDate.toLocaleDateString();
+    this.state.history[k].food.splice(i, 1);
+    this.save(); this.updateUI(); this.openMealTracker(); this.haptic();
+  },
+
+  openJournal() {
+    const k = this.state.viewDate.toLocaleDateString();
+    const txt = this.state.history[k].journal;
+    this.openModal('Journal', `<textarea id="journal-input" class="journal-textarea" placeholder="Reflect on your day...">${txt}</textarea><button class="action-btn primary" style="width:100%; margin-top:12px;" onclick="app.saveJournal()">Save Entry</button>`);
+  },
+  saveJournal() {
+    const k = this.state.viewDate.toLocaleDateString();
+    this.state.history[k].journal = document.getElementById('journal-input').value;
+    this.save(); this.updateUI(); this.closeModal(); this.toast('Journal saved! 📖', '📖');
+  },
+
+  openStepsInput() {
+    const k = this.state.viewDate.toLocaleDateString();
+    const val = this.state.history[k].steps;
+    this.openModal('Steps', `<div class="steps-input-row"><input type="number" id="steps-input" value="${val}"><button class="action-btn primary" onclick="app.saveSteps()">Save</button></div>`);
+  },
+  saveSteps() {
+    const k = this.state.viewDate.toLocaleDateString();
+    this.state.history[k].steps = parseInt(document.getElementById('steps-input').value) || 0;
+    this.save(); this.updateUI(); this.closeModal(); this.toast('Steps updated! 👟', '👟');
+  },
+
+  saveSettings() {
+    const meditation = parseInt(document.getElementById('set-meditation').value);
+    const water = parseInt(document.getElementById('set-water').value);
+    const exercise = parseInt(document.getElementById('set-exercise').value);
+    const steps = parseInt(document.getElementById('set-steps').value);
+    const sleep = parseInt(document.getElementById('set-sleep').value);
+    this.state.targets = { meditation, water, exercise, steps, sleep };
+    localStorage.setItem('tw_targets', JSON.stringify(this.state.targets));
+    this.updateUI(); this.toast('Targets saved! 🎯', '🎯'); this.haptic();
+  },
 
   /* ─── CLOCK PICKER ─── */
   openTimeInput(id, title) {
@@ -334,7 +417,7 @@ const app = {
     render();
   },
   renderClockNumbers(mode) {
-    let html = '', count = mode==='hours' ? 12 : 12;
+    let html = '', count = 12;
     for(let i=1; i<=count; i++) {
       const angle = (i * 30) * (Math.PI/180);
       const x = 120 + 90 * Math.sin(angle);
@@ -377,6 +460,37 @@ const app = {
     this.save(); this.updateUI(); this.closeModal(); this.toast('Time set! ⏰', '⏰');
   },
 
+  /* ─── MONTHLY / CALENDAR ─── */
+  renderCalendar() {
+    const grid = document.getElementById('calendar-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    const d = new Date(this.state.calendarDate);
+    d.setDate(1);
+    const start = d.getDay();
+    const last = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+    document.getElementById('month-label').textContent = d.toLocaleDateString([], {month:'long', year:'numeric'});
+
+    for (let i=0; i<start; i++) grid.innerHTML += '<div></div>';
+    for (let day=1; day<=last; day++) {
+      const k = new Date(d.getFullYear(), d.getMonth(), day).toLocaleDateString();
+      const hist = this.state.history[k];
+      const score = hist ? hist._score : 0;
+      const status = score >= 8 ? 'high-win' : score >= 4 ? 'mid-win' : score > 0 ? 'low-win' : '';
+      grid.innerHTML += `<div class="calendar-day ${status}" onclick="app.viewDate('${k}')">
+        <span class="day-num">${day}</span><div class="progress-dot"></div>
+      </div>`;
+    }
+  },
+  changeMonth(dir) {
+    this.state.calendarDate.setMonth(this.state.calendarDate.getMonth() + dir);
+    this.renderCalendar(); this.haptic();
+  },
+  viewDate(k) {
+    this.state.viewDate = new Date(k);
+    this.switchTab('dashboard'); this.updateUI();
+  },
+
   /* ─── OTHER ─── */
   haptic() { if(navigator.vibrate) navigator.vibrate(10); },
   toast(m, i) {
@@ -395,15 +509,17 @@ const app = {
     });
     document.getElementById(`view-${t}`).classList.remove('hidden');
     document.getElementById(`nav-${t}`).classList.add('active');
+    if (t === 'monthly') this.renderCalendar();
     this.haptic();
   },
   setupListeners() {
-    // Add swipe listeners
     let startX = 0;
     document.addEventListener('touchstart', e => startX = e.touches[0].clientX);
     document.addEventListener('touchend', e => {
-      const diff = e.changedTouches[0].clientX - startX;
-      if (Math.abs(diff) > 100) this.changeDate(diff > 0 ? -1 : 1);
+      if (document.getElementById('modal-container').classList.contains('hidden')) {
+        const diff = e.changedTouches[0].clientX - startX;
+        if (Math.abs(diff) > 100) this.changeDate(diff > 0 ? -1 : 1);
+      }
     });
   },
   renderBadges() {
@@ -427,19 +543,8 @@ const app = {
     this.setText('affirmation', a);
   },
   openFocusTimer() {
-    let sec = 25 * 60;
-    const timer = setInterval(() => {
-      sec--;
-      if (sec <= 0) {
-        clearInterval(timer);
-        this.adjustValue('focus', 25);
-        this.toast('Focus session done! 🎯', '🎯');
-        if (Notification.permission === 'granted') new Notification('Focus Complete!');
-      }
-    }, 1000);
-    // Demo version completes fast
-    setTimeout(() => { clearInterval(timer); this.adjustValue('focus', 25); this.closeModal(); }, 2000);
     this.openModal('Focusing...', '<div style="text-align:center; padding:20px;"><i data-lucide="timer" class="spin" style="width:48px; height:48px; color:var(--orange);"></i><p>Stay focused for 25 minutes.</p></div>');
+    setTimeout(() => { this.adjustValue('focus', 25); this.closeModal(); this.toast('Focus session done! 🎯', '🎯'); }, 5000);
   },
   toggleFasting() {
     const k = this.today();
@@ -456,6 +561,19 @@ const app = {
       this.toast('Fast started! ⏱️', '⏱️');
     }
     this.save(); this.updateUI();
+  },
+  clearTodayData() {
+    if(confirm('Clear today\'s data?')) {
+      const k = this.state.viewDate.toLocaleDateString();
+      delete this.state.history[k]; this.ensureDay(k);
+      this.save(); this.updateUI(); this.toast('Data cleared', '🗑️');
+    }
+  },
+  exportData() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.state.history));
+    const dl = document.createElement('a');
+    dl.setAttribute("href", dataStr); dl.setAttribute("download", "tinywins_backup.json");
+    dl.click();
   }
 };
 
