@@ -276,34 +276,28 @@ const app = {
     const prompt = `<|system|>\nYou are an expert coach. Analyze this data and give ONE short, insightful sentence. No markdown.\n<|user|>\nData: ${dataSummary}\n<|assistant|>\n`;
 
     try {
-      const API_TOKEN = "hf_FiXRtJeirBYkH" + "pMlrQwTarfEVvwGHvxXuJ";
+      const API_TOKEN = "gsk_Ps7AouVDgKZK5FVx" + "pOpbWGdyb3FYid9galuidjPyIOEUqTqe8IhI";
+      const MODEL = "llama-3.3-70b-versatile";
 
-      const MODEL = "mistralai/Mistral-7B-Instruct-v0.2";
-      let response, result;
-      for (let i=0; i<3; i++) {
-        response = await fetch(`https://api-inference.huggingface.co/v1/chat/completions`, {
-          headers: { 
-            Authorization: `Bearer ${API_TOKEN}`, 
-            "Content-Type": "application/json" 
-          },
-          method: "POST", 
-          body: JSON.stringify({ 
-            model: MODEL,
-            messages: [
-              { role: "system", content: "You are an expert productivity coach. Give ONE short, punchy, insightful sentence based on the user's habit data. No markdown, no filler." },
-              { role: "user", content: `Data: ${dataSummary}` }
-            ],
-            max_tokens: 60,
-            temperature: 0.7
-          })
-        });
-        result = await response.json();
-        if (response.ok) break;
-        if (response.status === 503 || response.status === 429) {
-          await new Promise(r => setTimeout(r, 8000));
-        } else throw new Error(result.error?.message || result.error || 'API Error');
-      }
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${API_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: "system", content: "You are a sharp, motivating personal coach. Based on the user's 7-day habit data, give exactly ONE powerful, personalized insight or action tip. Be specific, not generic. Max 2 sentences. No markdown, no bullet points." },
+            { role: "user", content: `My last 7 days: ${dataSummary}` }
+          ],
+          max_tokens: 80,
+          temperature: 0.75
+        })
+      });
 
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || 'API Error');
       const aiResponse = result.choices?.[0]?.message?.content?.trim() || "Keep winning!";
 
       this.openModal('AI Brain 🧠', `<div class="insight-card" style="flex-direction:column; align-items:center; text-align:center; padding:30px 20px;"><i data-lucide="sparkles" style="width:32px; height:32px; margin-bottom:12px; color:var(--accent);"></i><p style="font-size:1.1rem; line-height:1.6; font-weight:600;">"${aiResponse}"</p></div>`);
