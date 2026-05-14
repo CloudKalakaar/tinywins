@@ -314,10 +314,10 @@
       <div class="settings-group glass">
         <h3>Theme</h3>
         <p class="setting-desc">Choose a theme to personalize your experience.</p>
-        <select id="theme-select" class="theme-select" onchange="app.changeTheme()">
-          <option value="default">Default Navy</option>
-          <option value="amoled" id="theme-amoled">Pure AMOLED</option>
-          <option value="sunset" id="theme-sunset">Sunset Orange</option>
+        <select id="theme-select" class="glass-input" onchange="app.changeTheme()">
+          <option value="default">🌌 Default Navy</option>
+          <option value="amoled" id="theme-amoled">🌑 Pure AMOLED</option>
+          <option value="sunset" id="theme-sunset">🌅 Sunset Orange</option>
         </select>
       </div>
 
@@ -332,7 +332,7 @@
       </div>
 
       <!-- SMART REMINDERS -->
-      <div class="settings-group glass">
+      <div class="settings-group glass" id="notif-section">
         <h3>🔔 Smart Reminders</h3>
         <p class="setting-desc">Get nudged to log your habits at the right time. Works as a PWA when added to home screen.</p>
         <div class="notif-status-row">
@@ -340,12 +340,13 @@
           <div style="display:flex;gap:8px;">
             <button class="action-btn" onclick="app.enableNotifications()">Enable</button>
             <button class="action-btn danger-btn" onclick="app.disableNotifications()">Disable</button>
+            <button class="action-btn" onclick="app.sendTestNotification()" style="background:rgba(255,255,255,0.05)">Test</button>
           </div>
         </div>
-        <div class="setting-row"><label>☀️ Morning</label><input type="time" id="notif-morning" value="07:30"></div>
-        <div class="setting-row"><label>🌙 Evening</label><input type="time" id="notif-evening" value="21:00"></div>
-        <div class="setting-row"><label>💧 Water (every hrs)</label><input type="number" id="notif-water" value="2" min="1" max="8"></div>
-        <button class="action-btn save-settings-btn" onclick="app.saveNotifSettings()">Save Reminder Times</button>
+        <div class="setting-row"><label>☀️ Morning</label><button class="glass-input" style="width:120px" id="notif-morning-display" onclick="app.openTimeInput('notif-morning', 'Morning Reminder')">07:30</button></div>
+        <div class="setting-row"><label>🌙 Evening</label><button class="glass-input" style="width:120px" id="notif-evening-display" onclick="app.openTimeInput('notif-evening', 'Evening Reminder')">21:00</button></div>
+        <div class="setting-row"><label>💧 Water (every hrs)</label><input type="number" id="notif-water" class="glass-input" style="width:120px" value="2" min="1" max="8"></div>
+        <button class="action-btn save-settings-btn" onclick="app.saveNotifSettings()">Save Reminder Settings</button>
       </div>
 
       <!-- HEALTH CONNECT -->

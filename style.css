@@ -470,7 +470,7 @@ h1 {
 .habit-bar-row { display:flex; align-items:center; gap:10px; }
 .habit-bar-row label { font-size:.75rem; color:var(--muted); width:72px; flex-shrink:0; }
 .habit-bar { flex:1; height:7px; background:var(--border); border-radius:4px; overflow:hidden; }
-.hb-fill { height:100%; border-radius:4px; transition: width .8s cubic-bezier(.4,0,.2,1); }
+.hb-fill { width: 0%; height:100%; border-radius:4px; transition: width .8s cubic-bezier(.4,0,.2,1); }
 .hb-wake      { background: var(--warning); }
 .hb-sleep     { background: var(--purple); }
 .hb-meditation{ background: var(--accent); }
@@ -598,6 +598,24 @@ h1 {
 .insight-text p { font-size: 0.9rem; line-height: 1.5; font-weight: 500; }
 .insight-text small { color: var(--muted); font-size: 0.75rem; display: block; margin-top: 4px; }
 
+/* ══ MOOD PICKER ══ */
+.mood-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; padding: 10px 0;
+}
+.mood-btn {
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  padding: 16px 8px; border-radius: 16px; display: flex; flex-direction: column;
+  align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s;
+}
+.mood-btn span { font-size: 1.8rem; }
+.mood-btn small { font-size: 0.7rem; color: var(--muted); font-weight: 600; }
+.mood-btn:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); }
+.mood-btn.selected {
+  background: rgba(56,189,248,0.15); border-color: var(--accent);
+}
+.mood-btn.selected small { color: var(--accent); }
+
+
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
@@ -636,4 +654,36 @@ h1 {
   background: rgba(62,207,142,0.06); border: 1px solid rgba(62,207,142,0.15);
 }
 .hc-info-note p { font-size: 0.8rem; color: var(--muted); line-height: 1.5; margin: 0; }
+
+/* ══ GLASS INPUTS ══ */
+.glass-input {
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  color: var(--text); border-radius: 12px; padding: 12px 16px;
+  font-family: var(--body); font-size: 0.95rem; outline: none;
+  transition: border-color 0.2s, background 0.2s; width: 100%;
+}
+.glass-input:focus { border-color: var(--accent); background: rgba(255,255,255,0.08); }
+.glass-input::placeholder { color: var(--muted); }
+
+.meal-input-group { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+.meal-list { display: flex; flex-direction: column; gap: 10px; }
+.meal-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; border-radius: 14px;
+}
+.meal-item-info { display: flex; flex-direction: column; gap: 2px; }
+.meal-item-info strong { font-size: 0.9rem; color: var(--text); }
+.meal-item-info small { font-size: 0.8rem; color: var(--muted); }
+
+.journal-textarea {
+  min-height: 200px; resize: vertical; line-height: 1.6;
+}
+
+select.glass-input {
+  appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+  background-size: 18px; padding-right: 40px;
+}
+select.glass-input option { background: #0d1a2e; color: var(--text); }
+
 

@@ -68,7 +68,12 @@ const app = {
     if (d.bedtime === undefined) d.bedtime = '';
     if (d.sleep === undefined) d.sleep = 0;
     if (d.focus === undefined) d.focus = 0;
-    if (d.fasting === undefined) d.fasting = 0;
+    if (d.fasting === undefined || typeof d.fasting !== 'number') d.fasting = 0;
+    if (d.focus === undefined || typeof d.focus !== 'number') d.focus = 0;
+    if (d.water === undefined || typeof d.water !== 'number') d.water = 0;
+    if (d.meditation === undefined || typeof d.meditation !== 'number') d.meditation = 0;
+    if (d.exercise === undefined || typeof d.exercise !== 'number') d.exercise = 0;
+    if (d.steps === undefined || typeof d.steps !== 'number') d.steps = 0;
     if (d._score === undefined) d._score = 0;
   },
 
@@ -187,11 +192,19 @@ const app = {
       this.renderCalendar();
     }
 
+    // Fasting button state
+    let fastActive = false;
+    for(let date in this.state.history) {
+      if(this.state.history[date].fasting_start) {
+        fastActive = true; break;
+      }
+    }
+    const fBtn = document.getElementById('fasting-btn');
+    if(fBtn) fBtn.textContent = fastActive ? 'End Fast' : 'Start Fast';
+
     this.renderBadges();
     
     // Fill Settings
-    const hfEl = document.getElementById('hf-token-input');
-    if (hfEl) hfEl.value = localStorage.getItem('tw_hf_token') || '';
     const ts = document.getElementById('theme-select');
     if (ts) ts.value = this.state.theme;
 
@@ -339,12 +352,17 @@ const app = {
     const d = this.state.history[k];
     const renderMeals = () => `
       <div class="meal-input-group">
-        <select id="meal-type"><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option></select>
-        <input type="text" id="meal-desc" placeholder="What did you eat?">
+        <select id="meal-type" class="glass-input">
+          <option>🍳 Breakfast</option>
+          <option>🍱 Lunch</option>
+          <option>🍽️ Dinner</option>
+          <option>🍎 Snack</option>
+        </select>
+        <input type="text" id="meal-desc" class="glass-input" placeholder="What did you eat?">
         <button class="action-btn primary" onclick="app.addMeal()">Add Meal</button>
       </div>
       <div class="meal-list">${d.food.map((f,i) => `
-        <div class="meal-item">
+        <div class="meal-item glass">
           <div class="meal-item-info"><strong>${f.type}</strong><small>${f.desc}</small></div>
           <button class="del-btn" onclick="app.deleteMeal(${i})"><i data-lucide="trash-2"></i></button>
         </div>`).join('')}
@@ -367,7 +385,7 @@ const app = {
   openJournal() {
     const k = this.state.viewDate.toLocaleDateString();
     const txt = this.state.history[k].journal;
-    this.openModal('Journal', `<textarea id="journal-input" class="journal-textarea" placeholder="Reflect on your day...">${txt}</textarea><button class="action-btn primary" style="width:100%; margin-top:12px;" onclick="app.saveJournal()">Save Entry</button>`);
+    this.openModal('Journal', `<textarea id="journal-input" class="glass-input journal-textarea" placeholder="Reflect on your day...">${txt}</textarea><button class="action-btn primary" style="width:100%; margin-top:12px;" onclick="app.saveJournal()">Save Entry</button>`);
   },
   saveJournal() {
     const k = this.state.viewDate.toLocaleDateString();
@@ -378,7 +396,7 @@ const app = {
   openStepsInput() {
     const k = this.state.viewDate.toLocaleDateString();
     const val = this.state.history[k].steps;
-    this.openModal('Steps', `<div class="steps-input-row"><input type="number" id="steps-input" value="${val}"><button class="action-btn primary" onclick="app.saveSteps()">Save</button></div>`);
+    this.openModal('Steps', `<div class="meal-input-group"><input type="number" id="steps-input" class="glass-input" value="${val}" placeholder="Enter steps count..."><button class="action-btn primary" onclick="app.saveSteps()">Save Steps</button></div>`);
   },
   saveSteps() {
     const k = this.state.viewDate.toLocaleDateString();
@@ -400,73 +418,169 @@ const app = {
   /* ─── CLOCK PICKER ─── */
   openTimeInput(id, title) {
     let h=7, m=0, ampm='AM', mode='hours';
-    const render = () => {
-      const html = `
-        <div class="clock-container">
-          <div class="clock-display">
-            <span id="clk-h" class="${mode==='hours'?'':'inactive'}">${h}</span>:
-            <span id="clk-m" class="${mode==='mins'?'':'inactive'}">${m.toString().padStart(2,'0')}</span>
-          </div>
-          <div class="clock-face" id="clock-face">
-            <div class="clock-center"></div>
-            <div class="clock-hand" id="clock-hand"></div>
-            ${this.renderClockNumbers(mode)}
-          </div>
-          <div class="ampm-toggle">
-            <button class="ampm-btn ${ampm==='AM'?'active':''}" onclick="app._setAMPM('AM')">AM</button>
-            <button class="ampm-btn ${ampm==='PM'?'active':''}" onclick="app._setAMPM('PM')">PM</button>
-          </div>
-          <button class="action-btn primary" style="width:100%" onclick="app._saveClockTime('${id}')">Set Time</button>
+
+    // Try to pre-fill
+    let existing = '';
+    if (id.startsWith('notif-')) {
+      existing = localStorage.getItem('tw_' + id.replace(/-/g, '_')) || '';
+    } else {
+      const k = this.state.viewDate.toLocaleDateString();
+      existing = this.state.history[k][id] || '';
+    }
+
+    if (existing) {
+      if (existing.includes(' ')) { // 07:30 AM format
+        const [time, ap] = existing.split(' ');
+        const [hh, mm] = time.split(':').map(Number);
+        h = hh; m = mm; ampm = ap;
+      } else { // 24h format 19:30
+        const [hh, mm] = existing.split(':').map(Number);
+        h = hh > 12 ? hh - 12 : (hh === 0 ? 12 : hh);
+        ampm = hh >= 12 ? 'PM' : 'AM';
+        m = mm;
+      }
+    }
+
+    const html = `
+      <div class="clock-container">
+        <div class="clock-display">
+          <span id="clk-h" class="active" onclick="app._switchClockMode('hours')">${h}</span>:
+          <span id="clk-m" class="inactive" onclick="app._switchClockMode('mins')">${m.toString().padStart(2,'0')}</span>
         </div>
-      `;
-      this.openModal(title, html);
-      this.setupClockEvents(mode, (val) => { if(mode==='hours') h=val; else m=val; render(); });
-    };
-    this.app_temp_clock = { h, m, ampm, mode, render };
-    render();
+        <div class="clock-face" id="clock-face">
+          <div class="clock-center"></div>
+          <div class="clock-hand" id="clock-hand"></div>
+          <div id="clock-numbers"></div>
+        </div>
+        <div class="ampm-toggle">
+          <button id="ampm-am" class="ampm-btn active" onclick="app._setAMPM('AM')">AM</button>
+          <button id="ampm-pm" class="ampm-btn" onclick="app._setAMPM('PM')">PM</button>
+        </div>
+        <button class="action-btn primary" style="width:100%" onclick="app._saveClockTime('${id}')">Set Time</button>
+      </div>
+    `;
+    this.openModal(title, html);
+    this.app_temp_clock = { h, m, ampm, mode, id };
+    this._renderClockFace();
+    this.setupClockEvents();
   },
-  renderClockNumbers(mode) {
+  _renderClockFace() {
+    const c = this.app_temp_clock;
+    const numContainer = document.getElementById('clock-numbers');
+    const hand = document.getElementById('clock-hand');
+    const hDisp = document.getElementById('clk-h');
+    const mDisp = document.getElementById('clk-m');
+    if(!numContainer) return;
+
+    hDisp.className = c.mode === 'hours' ? 'active' : 'inactive';
+    mDisp.className = c.mode === 'mins' ? 'active' : 'inactive';
+    hDisp.textContent = c.h;
+    mDisp.textContent = c.m.toString().padStart(2,'0');
+
     let html = '', count = 12;
     for(let i=1; i<=count; i++) {
       const angle = (i * 30) * (Math.PI/180);
       const x = 120 + 90 * Math.sin(angle);
       const y = 120 - 90 * Math.cos(angle);
-      const val = mode==='hours' ? i : (i===12 ? 0 : i*5);
+      const val = c.mode==='hours' ? i : (i===12 ? 0 : i*5);
       html += `<div class="clock-number" style="left:${x}px; top:${y}px">${val}</div>`;
     }
-    return html;
+    numContainer.innerHTML = html;
+
+    const angle = c.mode === 'hours' ? (c.h * 30) : (c.m * 6);
+    hand.style.transform = `translateX(-50%) rotate(${angle}deg)`;
   },
-  setupClockEvents(mode, cb) {
+  _switchClockMode(m) {
+    this.app_temp_clock.mode = m;
+    this._renderClockFace();
+    this.haptic();
+  },
+  setupClockEvents() {
     const face = document.getElementById('clock-face');
     if(!face) return;
     const hand = document.getElementById('clock-hand');
+    
     const update = (e) => {
+      const c = this.app_temp_clock;
       const rect = face.getBoundingClientRect();
       const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
-      const x = (e.touches ? e.touches[0].clientX : e.clientX) - cx;
-      const y = (e.touches ? e.touches[0].clientY : e.clientY) - cy;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const x = clientX - cx, y = clientY - cy;
+      
       let angle = Math.atan2(y, x) * (180/Math.PI) + 90;
       if (angle < 0) angle += 360;
-      const step = mode==='hours' ? 30 : 6;
+      
+      const step = c.mode === 'hours' ? 30 : 6;
       angle = Math.round(angle/step) * step;
       hand.style.transform = `translateX(-50%) rotate(${angle}deg)`;
-      let val = mode==='hours' ? Math.round(angle/30) : Math.round(angle/6);
-      if(mode==='hours' && val===0) val=12;
-      if(mode==='mins' && val===60) val=0;
-      cb(val);
+      
+      let val = c.mode === 'hours' ? Math.round(angle/30) : Math.round(angle/6);
+      if(c.mode === 'hours' && val === 0) val = 12;
+      if(c.mode === 'mins' && val === 60) val = 0;
+      
+      if(c.mode === 'hours') {
+        c.h = val;
+        document.getElementById('clk-h').textContent = val;
+      } else {
+        c.m = val;
+        document.getElementById('clk-m').textContent = val.toString().padStart(2,'0');
+      }
     };
-    face.onmousedown = (e) => { update(e); face.onmousemove = update; };
-    window.onmouseup = () => { face.onmousemove = null; };
-    face.ontouchstart = (e) => { update(e); face.ontouchmove = update; };
-    face.ontouchend = () => { face.ontouchmove = null; };
+
+    const onEnd = () => {
+      const c = this.app_temp_clock;
+      document.removeEventListener('mousemove', update);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchmove', update);
+      document.removeEventListener('touchend', onEnd);
+      
+      if(c.mode === 'hours') {
+        setTimeout(() => {
+          c.mode = 'mins';
+          this._renderClockFace();
+        }, 300);
+      }
+    };
+
+    face.addEventListener('mousedown', (e) => {
+      update(e);
+      document.addEventListener('mousemove', update);
+      document.addEventListener('mouseup', onEnd);
+    });
+    face.addEventListener('touchstart', (e) => {
+      update(e);
+      document.addEventListener('touchmove', update);
+      document.addEventListener('touchend', onEnd);
+    }, {passive: false});
   },
-  _setAMPM(v) { this.app_temp_clock.ampm = v; this.app_temp_clock.render(); this.haptic(); },
+  _setAMPM(v) {
+    this.app_temp_clock.ampm = v;
+    document.getElementById('ampm-am').classList.toggle('active', v==='AM');
+    document.getElementById('ampm-pm').classList.toggle('active', v==='PM');
+    this.haptic();
+  },
   _saveClockTime(id) {
     const c = this.app_temp_clock;
-    const time = `${c.h}:${c.m.toString().padStart(2,'0')} ${c.ampm}`;
-    const k = this.state.viewDate.toLocaleDateString();
-    this.state.history[k][id] = time;
-    this.save(); this.updateUI(); this.closeModal(); this.toast('Time set! ⏰', '⏰');
+    const timeWithAMPM = `${c.h}:${c.m.toString().padStart(2,'0')} ${c.ampm}`;
+    
+    if (id.startsWith('notif-')) {
+      // Convert to 24h for notification logic
+      let h24 = c.h;
+      if (c.ampm === 'PM' && h24 < 12) h24 += 12;
+      if (c.ampm === 'AM' && h24 === 12) h24 = 0;
+      const time24 = `${h24.toString().padStart(2,'0')}:${c.m.toString().padStart(2,'0')}`;
+      localStorage.setItem('tw_' + id.replace(/-/g, '_'), time24);
+      this.updateNotifUI();
+      this.scheduleAllNotifications();
+      this.toast('Reminder time set! ⏰', '⏰');
+    } else {
+      const k = this.state.viewDate.toLocaleDateString();
+      this.state.history[k][id] = timeWithAMPM;
+      this.save(); this.updateUI();
+      this.toast('Time set! ⏰', '⏰');
+    }
+    this.closeModal();
   },
 
   /* ─── MONTHLY / CALENDAR ─── */
@@ -490,6 +604,36 @@ const app = {
         <span class="day-num">${day}</span><div class="progress-dot"></div>
       </div>`;
     }
+
+    // Update Monthly Stats
+    this.updateMonthlyBreakdown(d.getFullYear(), d.getMonth(), last);
+  },
+  updateMonthlyBreakdown(year, month, lastDay) {
+    const stats = { wake:0, sleep:0, meditation:0, water:0, exercise:0, steps:0 };
+    let loggedDays = 0;
+    const t = this.state.targets;
+
+    for (let day=1; day<=lastDay; day++) {
+      const k = new Date(year, month, day).toLocaleDateString();
+      const h = this.state.history[k];
+      if (h && h._score !== undefined) {
+        loggedDays++;
+        if (h.wake) stats.wake++;
+        if (h.bedtime) stats.sleep++;
+        if (h.meditation >= t.meditation) stats.meditation++;
+        if (h.water >= t.water) stats.water++;
+        if (h.exercise >= t.exercise) stats.exercise++;
+        if (h.steps >= t.steps) stats.steps++;
+      }
+    }
+
+    Object.keys(stats).forEach(key => {
+      const pct = loggedDays ? Math.round((stats[key] / loggedDays) * 100) : 0;
+      const bar = document.getElementById(`mhb-${key}`);
+      const txt = document.getElementById(`mhp-${key}`);
+      if (bar) bar.style.width = `${pct}%`;
+      if (txt) txt.textContent = `${pct}%`;
+    });
   },
   changeMonth(dir) {
     this.state.calendarDate.setMonth(this.state.calendarDate.getMonth() + dir);
@@ -506,10 +650,6 @@ const app = {
     const t=document.getElementById('toast'); 
     this.setText('toast-msg', m); this.setText('toast-icon', i);
     t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'), 2500);
-  },
-  saveHFToken() {
-    const val = document.getElementById('hf-token-input')?.value;
-    if(val) { localStorage.setItem('tw_hf_token', val); this.toast('Token saved! 🧠', '🔐'); }
   },
   switchTab(t) {
     ['dashboard','monthly','settings'].forEach(v => {
@@ -552,20 +692,65 @@ const app = {
     this.setText('affirmation', a);
   },
   openFocusTimer() {
-    this.openModal('Focusing...', '<div style="text-align:center; padding:20px;"><i data-lucide="timer" class="spin" style="width:48px; height:48px; color:var(--orange);"></i><p>Stay focused for 25 minutes.</p></div>');
-    setTimeout(() => { this.adjustValue('focus', 25); this.closeModal(); this.toast('Focus session done! 🎯', '🎯'); }, 5000);
+    if(this.focusInterval) {
+      this.toast('Session already active', '⚠️'); return;
+    }
+    let sec = 25 * 60;
+    const html = `
+      <div style="text-align:center; padding:30px;">
+        <div id="focus-countdown" style="font-size:3.5rem; font-weight:800; color:var(--orange); margin-bottom:15px;">25:00</div>
+        <p id="focus-status">Stay focused. You got this!</p>
+        <button class="action-btn danger-btn" style="margin-top:20px; width:100%" onclick="app.stopFocus()">Stop Session</button>
+      </div>`;
+    this.openModal('Focus Session', html);
+    
+    this.focusInterval = setInterval(() => {
+      sec--;
+      const m = Math.floor(sec/60), s = sec%60;
+      const el = document.getElementById('focus-countdown');
+      if(el) el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+      
+      if(sec <= 0) {
+        this.stopFocus(true);
+      }
+    }, 1000);
+  },
+  stopFocus(completed = false) {
+    clearInterval(this.focusInterval);
+    this.focusInterval = null;
+    this.closeModal();
+    if(completed) {
+      this.adjustValue('focus', 25);
+      this.toast('Session complete! 🎯', '🎯');
+    } else {
+      this.toast('Session cancelled', '🛑');
+    }
   },
   toggleFasting() {
     const k = this.today();
-    const d = this.state.history[k];
-    if (d.fasting_start) {
+    const history = this.state.history;
+    
+    // Check if any day has an active fast
+    let activeDay = null;
+    for(let date in history) {
+      if(history[date].fasting_start) {
+        activeDay = date; break;
+      }
+    }
+
+    if (activeDay) {
+      const d = history[activeDay];
       const diff = (new Date() - new Date(d.fasting_start)) / (1000*60*60);
-      d.fasting = Math.round(diff * 10) / 10;
+      const hours = Math.round(diff * 10) / 10;
+      
+      // Credit hours to the day it ended
+      history[k].fasting = (history[k].fasting || 0) + hours;
       delete d.fasting_start;
+      
       document.getElementById('fasting-btn').textContent = 'Start Fast';
-      this.toast('Fast ended! 🔋', '🔋');
+      this.toast(`Fast ended: ${hours}h 🔋`, '🔋');
     } else {
-      d.fasting_start = new Date().toISOString();
+      history[k].fasting_start = new Date().toISOString();
       document.getElementById('fasting-btn').textContent = 'End Fast';
       this.toast('Fast started! ⏱️', '⏱️');
     }
@@ -602,15 +787,28 @@ const app = {
   },
   async enableNotifications() {
     if (!('Notification' in window)) {
-      this.toast('Notifications not supported on this browser', '❌'); return;
+      this.toast('Browser does not support notifications', '❌'); return;
     }
-    const perm = await Notification.requestPermission();
-    if (perm === 'granted') {
-      localStorage.setItem('tw_notif_enabled', 'true');
-      this.scheduleAllNotifications();
-      this.toast('Notifications enabled! 🔔', '🔔');
-    } else {
-      this.toast('Permission denied — enable in browser settings', '❌');
+    
+    if (window.location.protocol === 'file:') {
+      this.toast('Notifications require a local server (like Live Server) or HTTPS', '⚠️');
+      // Continue anyway, but warn
+    }
+
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        localStorage.setItem('tw_notif_enabled', 'true');
+        this.scheduleAllNotifications();
+        this.updateNotifUI();
+        this.toast('Notifications enabled! 🔔', '🔔');
+        this._showNotif('TinyWins', 'Reminders are now active! 💪');
+      } else {
+        this.toast(`Permission ${perm} — check browser settings`, '❌');
+      }
+    } catch (e) {
+      this.toast('Browser blocked notification prompt', '❌');
+      console.error(e);
     }
     this.updateNotifUI();
   },
@@ -626,6 +824,7 @@ const app = {
     if (!el) return;
     const enabled = localStorage.getItem('tw_notif_enabled') === 'true';
     const granted = Notification.permission === 'granted';
+    
     if (enabled && granted) {
       el.textContent = '✅ Active'; el.style.color = 'var(--accent)';
     } else if (!('Notification' in window)) {
@@ -633,6 +832,14 @@ const app = {
     } else {
       el.textContent = '❌ Off'; el.style.color = 'var(--muted)';
     }
+
+    // Update time buttons
+    const m = localStorage.getItem('tw_notif_morning') || '07:30';
+    const e = localStorage.getItem('tw_notif_evening') || '21:00';
+    const mb = document.getElementById('notif-morning-display');
+    const eb = document.getElementById('notif-evening-display');
+    if (mb) mb.textContent = m;
+    if (eb) eb.textContent = e;
   },
   scheduleAllNotifications() {
     if (this._notifTimers) this._notifTimers.forEach(id => clearTimeout(id));
@@ -662,17 +869,29 @@ const app = {
   },
   _showNotif(title, body) {
     if (Notification.permission !== 'granted') return;
-    if ('serviceWorker' in navigator) {
+    
+    const options = {
+      body, vibrate: [200, 100, 200],
+      icon: './icons/icon-192.png',
+      badge: './icons/icon-192.png',
+      tag: title, renotify: true
+    };
+
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.ready.then(reg => {
-        reg.showNotification(title, {
-          body, vibrate: [200, 100, 200],
-          icon: 'https://cloudkalakaar.github.io/tinywins/icons/icon-192.png',
-          badge: 'https://cloudkalakaar.github.io/tinywins/icons/icon-192.png',
-          tag: title, renotify: true
-        });
+        reg.showNotification(title, options);
+      }).catch(() => {
+        new Notification(title, options);
       });
     } else {
-      new Notification(title, { body });
+      new Notification(title, options);
+    }
+  },
+  sendTestNotification() {
+    if (Notification.permission !== 'granted') {
+      this.toast('Please Enable notifications first', '⚠️');
+    } else {
+      this._showNotif('🔔 Test Notification', 'It works! TinyWins is ready to nudge you. 🚀');
     }
   },
   saveNotifSettings() {
@@ -684,6 +903,13 @@ const app = {
     if (w) localStorage.setItem('tw_notif_water', w);
     this.scheduleAllNotifications();
     this.toast('Reminder times saved! ⏰', '⏰');
+  },
+  openReminders() {
+    this.switchTab('settings');
+    setTimeout(() => {
+      const el = document.getElementById('notif-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   },
 
   /* ─── HEALTH CONNECT GUIDES ─── */
