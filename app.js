@@ -441,8 +441,8 @@ const app = {
     const update = (e) => {
       const rect = face.getBoundingClientRect();
       const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
-      const x = (e.touches?.[0].clientX : e.clientX) - cx;
-      const y = (e.touches?.[0].clientY : e.clientY) - cy;
+      const x = (e.touches ? e.touches[0].clientX : e.clientX) - cx;
+      const y = (e.touches ? e.touches[0].clientY : e.clientY) - cy;
       let angle = Math.atan2(y, x) * (180/Math.PI) + 90;
       if (angle < 0) angle += 360;
       const step = mode==='hours' ? 30 : 6;
