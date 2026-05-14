@@ -41,6 +41,7 @@ const app = {
     this.setupListeners();
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
     this.initNotifications();
+    this.checkAuth();
   },
 
   today() { return new Date().toLocaleDateString(); },
@@ -207,6 +208,11 @@ const app = {
     // Fill Settings
     const ts = document.getElementById('theme-select');
     if (ts) ts.value = this.state.theme;
+
+    const gfc = document.getElementById('gf-client-id');
+    if (gfc) gfc.value = localStorage.getItem('tw_gf_client_id') || '';
+    const gfs = document.getElementById('gf-status-text');
+    if (gfs) gfs.textContent = localStorage.getItem('tw_gf_token') ? 'Connected' : 'Not connected';
 
     lucide.createIcons();
   },
@@ -903,6 +909,89 @@ const app = {
     if (w) localStorage.setItem('tw_notif_water', w);
     this.scheduleAllNotifications();
     this.toast('Reminder times saved! ⏰', '⏰');
+  },
+  /* ─── GOOGLE FIT SYNC ─── */
+  saveGFSettings() {
+    const id = document.getElementById('gf-client-id').value.trim();
+    if (id) {
+      localStorage.setItem('tw_gf_client_id', id);
+      this.authGoogleFit();
+    }
+  },
+  authGoogleFit() {
+    const clientId = localStorage.getItem('tw_gf_client_id');
+    if (!clientId) { this.toast('Set Client ID first', '⚠️'); return; }
+    
+    const scope = 'https://www.googleapis.com/auth/fitness.activity.read https://www.googleapis.com/auth/fitness.sleep.read';
+    const redirect = window.location.origin + window.location.pathname;
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirect)}&response_type=token&scope=${encodeURIComponent(scope)}`;
+    
+    window.location.assign(authUrl);
+  },
+  checkAuth() {
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const token = params.get('access_token');
+      if (token) {
+        localStorage.setItem('tw_gf_token', token);
+        window.location.hash = ''; // Clear token from URL
+        this.toast('Google Fit connected! 🏃', '🏃');
+        this.syncGoogleFit();
+      }
+    }
+  },
+  async syncGoogleFit() {
+    const token = localStorage.getItem('tw_gf_token');
+    if (!token) { this.authGoogleFit(); return; }
+
+    this.toast('Syncing with Google Fit...', '🔄');
+    const now = new Date().getTime();
+    const startTime = now - (24 * 60 * 60 * 1000); // Last 24h
+
+    try {
+      // 1. Fetch Steps
+      const stepsData = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          aggregateBy: [{ dataTypeName: 'com.google.step_count.delta' }],
+          bucketByTime: { durationMillis: 86400000 },
+          startTimeMillis: startTime,
+          endTimeMillis: now
+        })
+      }).then(r => r.json());
+
+      const steps = stepsData.bucket?.[0]?.dataset?.[0]?.point?.[0]?.value?.[0]?.intVal || 0;
+      if (steps > 0) {
+        const k = this.today();
+        this.state.history[k].steps = steps;
+        this.toast(`Synced ${steps} steps! 👟`, '👟');
+      }
+
+      // 2. Fetch Sleep
+      const sleepData = await fetch(`https://www.googleapis.com/fitness/v1/users/me/sessions?activityType=72&startTime=${new Date(startTime).toISOString()}&endTime=${new Date(now).toISOString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).then(r => r.json());
+
+      if (sleepData.session?.[0]) {
+        const s = sleepData.session[0];
+        const hrs = Math.round((s.endTimeMillis - s.startTimeMillis) / (1000 * 60 * 60) * 10) / 10;
+        const k = this.today();
+        this.state.history[k].sleep = hrs;
+        
+        // Try to set wake/bedtime
+        const start = new Date(parseInt(s.startTimeMillis)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        const end = new Date(parseInt(s.endTimeMillis)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        this.state.history[k].bedtime = start;
+        this.state.history[k].wake = end;
+      }
+
+      this.save(); this.updateUI();
+    } catch (err) {
+      this.toast('Sync failed — token might be expired', '❌');
+      localStorage.removeItem('tw_gf_token');
+    }
   },
   openReminders() {
     this.switchTab('settings');
