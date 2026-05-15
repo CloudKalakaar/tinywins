@@ -52,13 +52,13 @@
 }
 
 [data-theme="babypink"] {
-  --bg: #fff1f2; /* Rose 50 */
-  --surface: rgba(255, 255, 255, 0.6);
-  --border: rgba(225, 29, 72, 0.1);
-  --accent: #e11d48;
-  --accent-glow: rgba(225, 29, 72, 0.1);
-  --text: #4c0519;
-  --muted: #9f1239;
+  --bg: #fbcfe8; /* Pink 200 - Solid and clear */
+  --surface: rgba(255, 255, 255, 0.85);
+  --border: rgba(190, 24, 93, 0.1);
+  --accent: #be185d;
+  --accent-glow: rgba(190, 24, 93, 0.1);
+  --text: #701a3d;
+  --muted: #9d174d;
 }
 
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
