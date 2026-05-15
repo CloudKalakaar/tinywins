@@ -574,7 +574,8 @@ const app = {
           temperature: 0.1, max_tokens: 10
         })
       }).then(r => r.json());
-      const c = parseInt(resp.choices[0].message.content.replace(/\D/g,''));
+      const matches = resp.choices[0].message.content.match(/\d+/);
+      const c = matches ? parseInt(matches[0]) : 0;
       return isNaN(c) ? 0 : c;
     } catch(e) { return 0; }
   },
