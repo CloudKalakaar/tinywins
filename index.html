@@ -167,6 +167,16 @@
           </div>
         </div>
 
+        <div class="tracker-card glass" data-id="journal">
+          <div class="card-top">
+            <div class="card-icon icon-journal"><i data-lucide="notebook-pen"></i></div>
+            <span class="win-check hidden"><i data-lucide="check"></i></span>
+          </div>
+          <h3>Journal</h3>
+          <p class="value journal-preview" id="val-journal">Add a note…</p>
+          <button class="action-btn" onclick="app.openJournal()">Write</button>
+        </div>
+
         <div class="tracker-card glass" data-id="wake">
           <div class="card-top">
             <div class="card-icon icon-wake"><i data-lucide="sunrise"></i></div>
@@ -261,16 +271,6 @@
           <h3>Meals</h3>
           <div id="food-preview" class="food-preview"><p class="no-data">No meals yet</p></div>
           <button class="action-btn" onclick="app.openMealTracker()">Manage</button>
-        </div>
-
-        <div class="tracker-card glass" data-id="journal">
-          <div class="card-top">
-            <div class="card-icon icon-journal"><i data-lucide="notebook-pen"></i></div>
-            <span class="win-check hidden"><i data-lucide="check"></i></span>
-          </div>
-          <h3>Journal</h3>
-          <p class="value journal-preview" id="val-journal">Add a note…</p>
-          <button class="action-btn" onclick="app.openJournal()">Write</button>
         </div>
 
         <div class="tracker-card glass" data-id="hobbies">
