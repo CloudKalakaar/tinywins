@@ -180,7 +180,7 @@ const app = {
 
     // Progress
     const score = this.calcScore(k);
-    const total = 11;
+    const total = 10;
     this.setText('progress-stats', `${score}/${total} wins`);
     const pct = Math.round((score/total)*100);
     this.setText('progress-percent', `${pct}%`);
@@ -221,7 +221,6 @@ const app = {
     this.setCard('food', mealWin);
     this.setCard('journal', d.journal && d.journal.length > 10);
     this.setCard('focus', d.focus >= t.focus);
-    this.setCard('fasting', d.fasting >= 16);
     this.setCard('hobbies', !!d.hobbies);
 
     // Sleep card status is now handled by the sleepHrs value above
@@ -266,16 +265,6 @@ const app = {
       this.renderCalendar();
     }
 
-    // Fasting button state
-    let fastActive = false;
-    for(let date in this.state.history) {
-      if(this.state.history[date].fasting_start) {
-        fastActive = true; break;
-      }
-    }
-    const fBtn = document.getElementById('fasting-btn');
-    if(fBtn) fBtn.textContent = fastActive ? 'End Fast' : 'Start Fast';
-
     this.renderBadges();
     
     // Fill Settings
@@ -310,7 +299,6 @@ const app = {
     if (mealWin) s++;
     if (d.journal && d.journal.length > 10) s++;
     if (d.focus >= t.focus) s++;
-    if (d.fasting >= 16) s++;
     
     const sleepHrs = this.calcSleepDuration(new Date(k));
     if (sleepHrs >= t.sleep) s++;
@@ -925,7 +913,7 @@ const app = {
     this.setText('stat-perfect-days', stats.perfectDays || 0);
     this.setText('stat-active-days', loggedDays);
     const avgScore = loggedDays ? Object.values(this.state.history).reduce((a,b)=>a+(b._score||0),0)/loggedDays : 0;
-    this.setText('stat-avg-progress', Math.round((avgScore/11)*100)+'%');
+    this.setText('stat-avg-progress', Math.round((avgScore/10)*100)+'%');
 
     Object.keys(stats).forEach(key => {
       const pct = loggedDays ? Math.round((stats[key] / loggedDays) * 100) : 0;
