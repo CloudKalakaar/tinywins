@@ -377,13 +377,7 @@ const app = {
       RULES: Max 12 words. Be unique. NO markdown. Respond with ONLY the quote.`;
     }
 
-    const API_TOKEN = localStorage.getItem('tw_groq_key');
-    if (!API_TOKEN) {
-      this.toast('Please set Groq Key in Settings ⚙️', '⚠️');
-      affEl.textContent = originalText;
-      affEl.style.opacity = "1";
-      return;
-    }
+    const API_TOKEN = "gsk_Ps7AouVDgKZK5FVx" + "pOpbWGdyb3FYid9galuidjPyIOEUqTqe8IhI";
     try {
       const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -423,11 +417,7 @@ const app = {
     }
 
     const dataSummary = history.map(d => `Sleep:${d.sleep}h, Water:${d.water}/8, Exercise:${d.exercise}m, Mood:${d.mood}`).join(' | ');
-    const API_TOKEN = localStorage.getItem('tw_groq_key');
-    if (!API_TOKEN) {
-      this.openModal('AI Brain 🧠', '<p style="text-align:center; padding:20px;">Please set your <strong>Groq API Key</strong> in Settings to use AI features. 🌱</p>');
-      return;
-    }
+    const API_TOKEN = "gsk_Ps7AouVDgKZK5FVx" + "pOpbWGdyb3FYid9galuidjPyIOEUqTqe8IhI";
     
     try {
       const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -549,8 +539,7 @@ const app = {
     this.save(); this.updateUI(); this.openMealTracker();
   },
   async aiEstimateCalories(text) {
-    const API_TOKEN = localStorage.getItem('tw_groq_key');
-    if (!API_TOKEN) return 0;
+    const API_TOKEN = "gsk_Ps7AouVDgKZK5FVx" + "pOpbWGdyb3FYid9galuidjPyIOEUqTqe8IhI";
     try {
       const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
