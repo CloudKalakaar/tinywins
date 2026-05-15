@@ -167,17 +167,6 @@
           </div>
         </div>
 
-        <!-- Fasting -->
-        <div class="tracker-card glass" data-id="fasting">
-          <div class="card-top">
-            <div class="card-icon" style="background:rgba(129,140,248,0.15); color:var(--purple);"><i data-lucide="zap"></i></div>
-            <span class="win-check hidden"><i data-lucide="check"></i></span>
-          </div>
-          <h3>Fasting</h3>
-          <p class="value" id="val-fasting">0h</p>
-          <button class="action-btn" id="fasting-btn" onclick="app.toggleFasting()">Start Fast</button>
-        </div>
-
         <div class="tracker-card glass" data-id="wake">
           <div class="card-top">
             <div class="card-icon icon-wake"><i data-lucide="sunrise"></i></div>
@@ -292,6 +281,17 @@
           <h3>Hobbies</h3>
           <p class="value" id="val-hobbies" style="font-size:0.9rem; opacity:0.8;">What did you enjoy today?</p>
           <button class="action-btn" onclick="app.openHobbyTracker()">Log Hobby</button>
+        </div>
+
+        <!-- Fasting (Secondary) -->
+        <div class="tracker-card glass" data-id="fasting">
+          <div class="card-top">
+            <div class="card-icon" style="background:rgba(129,140,248,0.15); color:var(--purple);"><i data-lucide="zap"></i></div>
+            <span class="win-check hidden"><i data-lucide="check"></i></span>
+          </div>
+          <h3>Fasting</h3>
+          <p class="value" id="val-fasting">0h</p>
+          <button class="action-btn" id="fasting-btn" onclick="app.toggleFasting()">Start Fast</button>
         </div>
       </section>
 
