@@ -568,14 +568,14 @@ const app = {
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
           messages: [{role: "user", content: `Expert Indian Nutritionist: Estimate total calories for "${text}".
-          IMPORTANT: Be very precise about South Indian food. Differentiate additions (e.g. "curd rice" ~350, "curd rice and mixture" ~550). 
-          Consider portion: Mixture/Sev is very calorie-dense (~550 per 100g). 
-          Return ONLY the numeric total.`}],
-          temperature: 0.1, max_tokens: 10
+          IMPORTANT: Be very precise about South Indian food. Differentiate additions (mixture/sides).
+          Return your response in this EXACT format: "CALORIES: [number]"`}],
+          temperature: 0.1, max_tokens: 20
         })
       }).then(r => r.json());
-      const matches = resp.choices[0].message.content.match(/\d+/);
-      const c = matches ? parseInt(matches[0]) : 0;
+      const content = resp.choices[0].message.content;
+      const match = content.match(/CALORIES:\s*(\d+)/i);
+      const c = match ? parseInt(match[1]) : 0;
       return isNaN(c) ? 0 : c;
     } catch(e) { return 0; }
   },
