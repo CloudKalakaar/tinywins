@@ -52,11 +52,11 @@
 }
 
 [data-theme="babypink"] {
-  --bg: #fbcfe8; /* Pink 200 - Solid and clear */
-  --surface: rgba(255, 255, 255, 0.85);
-  --border: rgba(190, 24, 93, 0.1);
-  --accent: #be185d;
-  --accent-glow: rgba(190, 24, 93, 0.1);
+  --bg: #f4d3d9; /* Accurate match to the tumbler body */
+  --surface: rgba(255, 255, 255, 0.75);
+  --border: rgba(236, 72, 153, 0.15);
+  --accent: #ec4899; /* Accurate match to the vibrant band */
+  --accent-glow: rgba(236, 72, 153, 0.15);
   --text: #701a3d;
   --muted: #9d174d;
 }
