@@ -161,7 +161,10 @@
           </div>
           <h3>Focus</h3>
           <p class="value" id="val-focus">0 min</p>
-          <button class="action-btn" onclick="app.openFocusTimer()">Start Timer</button>
+          <div class="time-log-actions">
+            <button class="action-btn" onclick="app.openFocusTimer()">Timer</button>
+            <button class="action-btn" onclick="app.openFocusInput()">Manual</button>
+          </div>
         </div>
 
         <!-- Fasting -->
@@ -280,6 +283,16 @@
           <p class="value journal-preview" id="val-journal">Add a note…</p>
           <button class="action-btn" onclick="app.openJournal()">Write</button>
         </div>
+
+        <div class="tracker-card glass" data-id="hobbies">
+          <div class="card-top">
+            <div class="card-icon" style="background:rgba(168,85,247,0.15); color:#a855f7;"><i data-lucide="palette"></i></div>
+            <span class="win-check hidden"><i data-lucide="check"></i></span>
+          </div>
+          <h3>Hobbies</h3>
+          <p class="value" id="val-hobbies" style="font-size:0.9rem; opacity:0.8;">What did you enjoy today?</p>
+          <button class="action-btn" onclick="app.openHobbyTracker()">Log Hobby</button>
+        </div>
       </section>
 
       <section class="badges-section">
@@ -345,6 +358,7 @@
           <option value="sunset" id="theme-sunset">🌅 Sunset Orange</option>
           <option value="rose">🌸 Midnight Rose</option>
           <option value="lavender">🔮 Deep Lavender</option>
+          <option value="babypink">🎀 Baby Pink</option>
         </select>
       </div>
 

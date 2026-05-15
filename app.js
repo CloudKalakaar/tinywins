@@ -134,6 +134,7 @@ const app = {
     if (d.exercise === undefined || typeof d.exercise !== 'number') d.exercise = 0;
     if (d.steps === undefined || typeof d.steps !== 'number') d.steps = 0;
     if (d._score === undefined) d._score = 0;
+    if (d.hobbies === undefined) d.hobbies = '';
   },
 
   save() { 
@@ -205,6 +206,7 @@ const app = {
     this.setText('val-fasting', `${d.fasting}h`);
     this.setText('val-water', `${d.water} / ${t.water}`);
     this.setText('val-journal', d.journal || 'Add a note…');
+    this.setText('val-hobbies', d.hobbies || 'What did you enjoy today?');
 
     // Cards status
     this.setCard('wake', !!d.wake);
@@ -219,6 +221,7 @@ const app = {
     this.setCard('journal', d.journal && d.journal.length > 10);
     this.setCard('focus', d.focus >= 25);
     this.setCard('fasting', d.fasting >= 16);
+    this.setCard('hobbies', !!d.hobbies);
 
     // Sleep card status is now handled by the sleepHrs value above
     this.setCard('sleep', sleepHrs >= t.sleep);
@@ -405,13 +408,14 @@ const app = {
     
     let prompt = "";
     if (type === 'joke') {
-      prompt = `You are a funny Indian stand-up comic. Tell ${name} ONE short, hilarious Indian-style joke or pun. 
-      Avoid these previous jokes: ${aiHistory.slice(-10).join('|')}.
-      RULES: Max 15 words. Be unique. NO markdown. Respond with ONLY the joke.`;
+      prompt = `You are a hilariously witty Indian stand-up comedian. Tell ${name} ONE short, side-splittingly funny Indian-style joke, observational humor, or wordplay.
+      Make it truly hilarious. Avoid these previous jokes: ${aiHistory.slice(-10).join('|')}.
+      RULES: Max 20 words. Be unique. NO markdown. Respond with ONLY the joke.`;
     } else {
-      prompt = `You are a legendary life coach. Give ${name} ONE powerful, 1-sentence motivational boost or a "Tiny Win" challenge.
+      prompt = `You are a manifestation expert and spiritual life coach. Give ${name} ONE powerful, affirmative manifestation or an "I AM" statement. 
+      It should be bold, certain, and highly motivational. 
       Avoid these previous quotes: ${aiHistory.slice(-10).join('|')}.
-      RULES: Max 12 words. Be unique. NO markdown. Respond with ONLY the quote.`;
+      RULES: Max 15 words. Be unique. NO markdown. Respond with ONLY the manifestation.`;
     }
 
     const API_TOKEN = "gsk_Ps7AouVDgKZK5FVx" + "pOpbWGdyb3FYid9galuidjPyIOEUqTqe8IhI";
@@ -623,6 +627,50 @@ const app = {
     const k = this.dateKey(this.state.viewDate);
     this.state.history[k].steps = parseInt(document.getElementById('steps-input').value) || 0;
     this.save(); this.updateUI(); this.closeModal(); this.toast('Steps updated! 👟', '👟');
+  },
+
+  openFocusInput() {
+    const k = this.dateKey(this.state.viewDate);
+    const val = this.state.history[k].focus;
+    this.openModal('Study / Focus Time', `<div class="meal-input-group"><input type="number" id="focus-input" class="glass-input" value="${val}" placeholder="Minutes studied..."><button class="action-btn primary" onclick="app.saveFocusTime()">Save Minutes</button></div>`);
+  },
+  saveFocusTime() {
+    const k = this.dateKey(this.state.viewDate);
+    this.state.history[k].focus = parseInt(document.getElementById('focus-input').value) || 0;
+    this.save(); this.updateUI(); this.closeModal(); this.toast('Focus time updated! ✍️', '✍️');
+  },
+
+  openHobbyTracker() {
+    const k = this.dateKey(this.state.viewDate);
+    const existing = this.state.history[k].hobbies || '';
+    const presets = ['Singing', 'Drawing', 'Reading', 'Coding', 'Dancing', 'Cooking', 'Gardening', 'Photography'];
+    
+    let html = `
+      <div class="hobby-picker">
+        <p class="setting-desc" style="margin-bottom:12px;">Select or type your hobbies today:</p>
+        <div class="hobby-chips">
+          ${presets.map(h => `<button class="hobby-chip ${existing.includes(h)?'selected':''}" onclick="app.toggleHobbyChip(this, '${h}')">${h}</button>`).join('')}
+        </div>
+        <input type="text" id="hobby-custom" class="glass-input" style="margin-top:16px;" placeholder="Other hobby..." value="${existing}">
+        <button class="action-btn primary" style="width:100%; margin-top:16px;" onclick="app.saveHobby()">Log Hobbies</button>
+      </div>
+    `;
+    this.openModal('Hobby Tracker', html);
+  },
+  toggleHobbyChip(btn, name) {
+    btn.classList.toggle('selected');
+    this.haptic();
+  },
+  saveHobby() {
+    const k = this.dateKey(this.state.viewDate);
+    const chips = Array.from(document.querySelectorAll('.hobby-chip.selected')).map(b => b.textContent);
+    const custom = document.getElementById('hobby-custom').value.trim();
+    
+    let all = new Set(chips);
+    if(custom) custom.split(',').forEach(c => { if(c.trim()) all.add(c.trim()); });
+    
+    this.state.history[k].hobbies = Array.from(all).filter(Boolean).join(', ');
+    this.save(); this.updateUI(); this.closeModal(); this.toast('Hobbies logged! 🎨', '🎨');
   },
 
   saveSettings() {
