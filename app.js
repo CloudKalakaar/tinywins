@@ -849,6 +849,13 @@ const app = {
       }
     });
   },
+  openReminders() {
+    this.switchTab('settings');
+    setTimeout(() => {
+      const el = document.getElementById('notif-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }, 150);
+  },
   renderBadges() {
     const grid = document.getElementById('badges-grid');
     if(!grid) return;
@@ -1006,9 +1013,9 @@ const app = {
       this.toast('Browser does not support notifications', '❌'); return;
     }
     
-    if (window.location.protocol === 'file:') {
-      this.toast('Notifications require a local server (like Live Server) or HTTPS', '⚠️');
-      // Continue anyway, but warn
+    if (Notification.permission === 'denied') {
+      this.toast('Notifications blocked. Reset permissions in site settings.', '❌');
+      return;
     }
 
     try {
@@ -1017,23 +1024,56 @@ const app = {
         localStorage.setItem('tw_notif_enabled', 'true');
         this.scheduleAllNotifications();
         this.updateNotifUI();
-        this.toast('Notifications enabled! 🔔', '🔔');
+        this.toast('Reminders enabled! 🔔', '🔔');
         this._showNotif('TinyWins', 'Reminders are now active! 💪');
       } else {
         this.toast(`Permission ${perm} — check browser settings`, '❌');
       }
     } catch (e) {
-      this.toast('Browser blocked notification prompt', '❌');
-      console.error(e);
+      this.toast('Notification prompt failed', '❌');
     }
     this.updateNotifUI();
   },
   disableNotifications() {
     localStorage.setItem('tw_notif_enabled', 'false');
-    if (this._notifTimers) this._notifTimers.forEach(id => clearTimeout(id));
+    if (this._notifTimers) this._notifTimers.forEach(id => {
+      if (id) {
+        clearTimeout(id); clearInterval(id);
+      }
+    });
     this._notifTimers = [];
     this.toast('Reminders disabled 🔕', '🔕');
     this.updateNotifUI();
+  },
+  openTimeInput(key, title) {
+    const curr = localStorage.getItem('tw_' + key) || (key.includes('morning')?'07:30':'21:00');
+    const [h, m] = curr.split(':');
+    const html = `
+      <div style="text-align:center; padding:20px;">
+        <div style="display:flex; justify-content:center; gap:10px; align-items:center; margin-bottom:25px;">
+          <div>
+            <small style="display:block; margin-bottom:5px; color:var(--muted);">Hour</small>
+            <input type="number" id="time-h" class="glass-input" value="${h}" min="0" max="23" style="width:75px; text-align:center; font-size:1.5rem; font-weight:800;">
+          </div>
+          <span style="font-size:1.5rem; font-weight:800; margin-top:20px;">:</span>
+          <div>
+            <small style="display:block; margin-bottom:5px; color:var(--muted);">Min</small>
+            <input type="number" id="time-m" class="glass-input" value="${m}" min="0" max="59" style="width:75px; text-align:center; font-size:1.5rem; font-weight:800;">
+          </div>
+        </div>
+        <button class="action-btn primary" style="width:100%" onclick="app.saveTimeInput('${key}')">Set Reminder</button>
+      </div>
+    `;
+    this.openModal(title, html);
+  },
+  saveTimeInput(key) {
+    const h = document.getElementById('time-h').value.padStart(2,'0');
+    const m = document.getElementById('time-m').value.padStart(2,'0');
+    localStorage.setItem('tw_' + key, `${h}:${m}`);
+    this.closeModal();
+    this.updateNotifUI();
+    this.scheduleAllNotifications();
+    this.toast('Time updated! ⏰', '⏰');
   },
   updateNotifUI() {
     const el = document.getElementById('notif-status');
@@ -1043,13 +1083,14 @@ const app = {
     
     if (enabled && granted) {
       el.textContent = '✅ Active'; el.style.color = 'var(--accent)';
-    } else if (!('Notification' in window)) {
-      el.textContent = '⚠️ Not supported'; el.style.color = 'var(--orange)';
-    } else {
+    } else if (Notification.permission === 'denied') {
+      el.textContent = '🚫 Blocked'; el.style.color = 'var(--danger)';
+    } else if (!enabled) {
       el.textContent = '❌ Off'; el.style.color = 'var(--muted)';
+    } else {
+      el.textContent = '⚠️ Permission Required'; el.style.color = 'var(--orange)';
     }
 
-    // Update time buttons
     const m = localStorage.getItem('tw_notif_morning') || '07:30';
     const e = localStorage.getItem('tw_notif_evening') || '21:00';
     const mb = document.getElementById('notif-morning-display');
