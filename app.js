@@ -567,15 +567,13 @@ const app = {
         headers: { "Authorization": `Bearer ${API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
-          messages: [{role: "user", content: `Expert Indian Nutritionist: Estimate total calories for "${text}".
-          IMPORTANT: Be very precise about South Indian food. Differentiate additions (mixture/sides).
-          Return your response in this EXACT format: "CALORIES: [number]"`}],
-          temperature: 0.1, max_tokens: 20
+          messages: [{role: "user", content: `You are an expert Indian nutritionist. Estimate total calories for: "${text}". Consider South Indian foods accurately (idly ~80cal each, sambar ~50cal, curd rice ~350cal, mixture ~200cal per serving, etc). Output a SINGLE integer number only, nothing else.`}],
+          temperature: 0.1, max_tokens: 10
         })
       }).then(r => r.json());
-      const content = resp.choices[0].message.content;
-      const match = content.match(/CALORIES:\s*(\d+)/i);
-      const c = match ? parseInt(match[1]) : 0;
+      // Extract the largest number (calorie total always > item count)
+      const nums = (resp.choices[0].message.content.match(/\d+/g) || []).map(Number);
+      const c = nums.length ? Math.max(...nums) : 0;
       return isNaN(c) ? 0 : c;
     } catch(e) { return 0; }
   },
