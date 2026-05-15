@@ -50,7 +50,14 @@ const app = {
     this.checkAuth();
   },
 
-  today() { return new Date().toLocaleDateString(); },
+  today() { return this.dateKey(new Date()); },
+  dateKey(date) {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const day = d.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  },
 
   saveUserName() {
     const input = document.getElementById('user-name-input');
@@ -65,7 +72,21 @@ const app = {
 
   loadState() {
     const s = localStorage.getItem('tw_history');
-    if (s) this.state.history = JSON.parse(s);
+    if (s) {
+      const rawHistory = JSON.parse(s);
+      // Migration: Convert old locale-string keys to YYYY-MM-DD
+      this.state.history = {};
+      Object.keys(rawHistory).forEach(key => {
+        let stableKey = key;
+        if (key.includes('/') || key.includes('.') || key.includes(',')) {
+          const d = new Date(key);
+          if (!isNaN(d.getTime())) {
+            stableKey = this.dateKey(d);
+          }
+        }
+        this.state.history[stableKey] = rawHistory[key];
+      });
+    }
     const t = localStorage.getItem('tw_targets');
     if (t) this.state.targets = { ...this.state.targets, ...JSON.parse(t) };
   },
@@ -117,14 +138,15 @@ const app = {
     const v = new Date(this.state.viewDate);
     v.setDate(v.getDate() + d);
     this.state.viewDate = v;
-    this.ensureDay(v.toLocaleDateString());
+    this.ensureDay(this.dateKey(v));
     this.updateUI();
     this.haptic();
   },
 
   /* ─── UI UPDATE ─── */
   updateUI() {
-    const k = this.state.viewDate.toLocaleDateString();
+    const dateObj = this.state.viewDate;
+    const k = this.dateKey(dateObj);
     const d = this.state.history[k];
     const t = this.state.targets;
 
@@ -150,7 +172,7 @@ const app = {
     document.getElementById('mood-emoji').textContent = d.mood;
 
     // Trackers
-    const sleepHrs = this.calcSleepDuration(k);
+    const sleepHrs = this.calcSleepDuration(dateObj);
     d.sleep = sleepHrs; // Update current day's sleep state
     
     this.setText('val-wake', d.wake || '--:--');
@@ -258,7 +280,7 @@ const app = {
     if (d.focus >= 25) s++;
     if (d.fasting >= 16) s++;
     
-    const sleepHrs = this.calcSleepDuration(k);
+    const sleepHrs = this.calcSleepDuration(new Date(k));
     if (sleepHrs >= t.sleep) s++;
     
     d._score = s;
@@ -268,7 +290,7 @@ const app = {
   calcStreak() {
     let streak = 0, d = new Date();
     while (true) {
-      const k = d.toLocaleDateString();
+      const k = this.dateKey(d);
       const day = this.state.history[k];
       if (!day || day._score === 0) break;
       streak++;
@@ -277,52 +299,47 @@ const app = {
     return streak;
   },
 
-  calcSleepDuration(k) {
+  calcSleepDuration(dateObj) {
+    const k = this.dateKey(dateObj);
     const d = this.state.history[k];
     if (!d || !d.wake) return 0;
 
-    const parseT = (t, dateStr) => {
+    const parseT = (t, baseDate) => {
       const [time, ap] = t.split(' ');
       let [h, m] = time.split(':').map(Number);
       if (ap === 'PM' && h < 12) h += 12;
       if (ap === 'AM' && h === 12) h = 0;
-      const res = new Date(dateStr);
+      const res = new Date(baseDate);
       res.setHours(h, m, 0, 0);
       return res;
     };
 
     try {
-      const wDate = parseT(d.wake, k);
+      const wDate = parseT(d.wake, dateObj);
       let bDate = null;
 
-      // 1. Check same day bedtime (if user went to bed after midnight, e.g. 1 AM)
       if (d.bedtime) {
-        const sameDayBed = parseT(d.bedtime, k);
+        const sameDayBed = parseT(d.bedtime, dateObj);
         if (sameDayBed < wDate) bDate = sameDayBed;
       }
 
-      // 2. If no same-day bedtime found before wake, check yesterday
       if (!bDate) {
-        const prev = new Date(k);
+        const prev = new Date(dateObj);
         prev.setDate(prev.getDate() - 1);
-        const yk = prev.toLocaleDateString();
+        const yk = this.dateKey(prev);
         const yd = this.state.history[yk];
         if (yd && yd.bedtime) {
-          bDate = parseT(yd.bedtime, yk);
+          bDate = parseT(yd.bedtime, prev);
         }
       }
 
       if (!bDate) return 0;
       let diff = (wDate - bDate) / (1000 * 60 * 60);
       
-      // Late-Night Correction:
-      // If the user logs an AM bedtime (e.g. 1 AM) on the "Yesterday" card,
-      // it's technically 24h+ before today's wake. We detect this and subtract 24h.
-      if (diff > 18 && bDate.getHours() < 12) {
-        diff -= 24;
-      }
-
-      return Math.max(0, Math.round(diff * 10) / 10);
+      if (diff < 0) diff += 24;
+      if (diff > 24) diff -= 24;
+      
+      return Math.round(diff * 10) / 10;
     } catch (e) {
       return 0;
     }
