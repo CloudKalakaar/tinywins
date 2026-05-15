@@ -1045,35 +1045,169 @@ const app = {
     this.toast('Reminders disabled 🔕', '🔕');
     this.updateNotifUI();
   },
-  openTimeInput(key, title) {
-    const curr = localStorage.getItem('tw_' + key) || (key.includes('morning')?'07:30':'21:00');
-    const [h, m] = curr.split(':');
+  openClock(id, title) {
+    let h = 7, m = 30, ampm = 'AM', mode = 'hours';
+    let existing = '';
+    
+    if (id.startsWith('notif-')) {
+      existing = localStorage.getItem('tw_' + id.replace(/-/g, '_')) || '';
+    } else {
+      const k = this.state.viewDate.toLocaleDateString();
+      existing = this.state.history[k][id] || '';
+    }
+
+    if (existing) {
+      if (existing.includes(' ')) {
+        const [time, ap] = existing.split(' ');
+        const [hh, mm] = time.split(':').map(Number);
+        h = hh; m = mm; ampm = ap;
+      } else {
+        const [hh, mm] = existing.split(':').map(Number);
+        h = hh > 12 ? hh - 12 : (hh === 0 ? 12 : hh);
+        ampm = hh >= 12 ? 'PM' : 'AM';
+        m = mm;
+      }
+    }
+
     const html = `
-      <div style="text-align:center; padding:20px;">
-        <div style="display:flex; justify-content:center; gap:10px; align-items:center; margin-bottom:25px;">
-          <div>
-            <small style="display:block; margin-bottom:5px; color:var(--muted);">Hour</small>
-            <input type="number" id="time-h" class="glass-input" value="${h}" min="0" max="23" style="width:75px; text-align:center; font-size:1.5rem; font-weight:800;">
-          </div>
-          <span style="font-size:1.5rem; font-weight:800; margin-top:20px;">:</span>
-          <div>
-            <small style="display:block; margin-bottom:5px; color:var(--muted);">Min</small>
-            <input type="number" id="time-m" class="glass-input" value="${m}" min="0" max="59" style="width:75px; text-align:center; font-size:1.5rem; font-weight:800;">
-          </div>
+      <div class="clock-container">
+        <div class="clock-display">
+          <span id="clk-h" class="active" onclick="app._switchClockMode('hours')">${h}</span>:
+          <span id="clk-m" class="inactive" onclick="app._switchClockMode('mins')">${m.toString().padStart(2,'0')}</span>
         </div>
-        <button class="action-btn primary" style="width:100%" onclick="app.saveTimeInput('${key}')">Set Reminder</button>
+        <div class="clock-face" id="clock-face">
+          <div class="clock-center"></div>
+          <div class="clock-hand" id="clock-hand"></div>
+          <div id="clock-numbers"></div>
+        </div>
+        <div class="ampm-toggle">
+          <button id="ampm-am" class="ampm-btn ${ampm==='AM'?'active':''}" onclick="app._setAMPM('AM')">AM</button>
+          <button id="ampm-pm" class="ampm-btn ${ampm==='PM'?'active':''}" onclick="app._setAMPM('PM')">PM</button>
+        </div>
+        <button class="action-btn primary" style="width:100%" onclick="app._saveClockTime('${id}')">Set Time</button>
       </div>
     `;
     this.openModal(title, html);
+    this.app_temp_clock = { h, m, ampm, mode, id };
+    this._renderClockFace();
+    this.setupClockEvents();
   },
-  saveTimeInput(key) {
-    const h = document.getElementById('time-h').value.padStart(2,'0');
-    const m = document.getElementById('time-m').value.padStart(2,'0');
-    localStorage.setItem('tw_' + key, `${h}:${m}`);
+  _renderClockFace() {
+    const c = this.app_temp_clock;
+    const numContainer = document.getElementById('clock-numbers');
+    const hand = document.getElementById('clock-hand');
+    const hDisp = document.getElementById('clk-h');
+    const mDisp = document.getElementById('clk-m');
+    if(!numContainer) return;
+
+    hDisp.className = c.mode === 'hours' ? 'active' : 'inactive';
+    mDisp.className = c.mode === 'mins' ? 'active' : 'inactive';
+    hDisp.textContent = c.h;
+    mDisp.textContent = c.m.toString().padStart(2,'0');
+
+    let html = '', count = 12;
+    for(let i=1; i<=count; i++) {
+      const angle = (i * 30) * (Math.PI/180);
+      const x = 120 + 90 * Math.sin(angle);
+      const y = 120 - 90 * Math.cos(angle);
+      const val = c.mode==='hours' ? i : (i===12 ? 0 : i*5);
+      html += `<div class="clock-number" style="left:${x}px; top:${y}px">${val}</div>`;
+    }
+    numContainer.innerHTML = html;
+
+    const angle = c.mode === 'hours' ? (c.h * 30) : (c.m * 6);
+    hand.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+  },
+  _switchClockMode(m) {
+    this.app_temp_clock.mode = m;
+    this._renderClockFace();
+    this.haptic();
+  },
+  setupClockEvents() {
+    const face = document.getElementById('clock-face');
+    if(!face) return;
+    const hand = document.getElementById('clock-hand');
+    
+    const update = (e) => {
+      const c = this.app_temp_clock;
+      const rect = face.getBoundingClientRect();
+      const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const x = clientX - cx, y = clientY - cy;
+      
+      let angle = Math.atan2(y, x) * (180/Math.PI) + 90;
+      if (angle < 0) angle += 360;
+      
+      const step = c.mode === 'hours' ? 30 : 6;
+      angle = Math.round(angle/step) * step;
+      hand.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+      
+      let val = c.mode === 'hours' ? Math.round(angle/30) : Math.round(angle/6);
+      if(c.mode === 'hours' && val === 0) val = 12;
+      if(c.mode === 'mins' && val === 60) val = 0;
+      
+      if(c.mode === 'hours') {
+        c.h = val;
+        document.getElementById('clk-h').textContent = val;
+      } else {
+        c.m = val;
+        document.getElementById('clk-m').textContent = val.toString().padStart(2,'0');
+      }
+    };
+
+    const onEnd = () => {
+      const c = this.app_temp_clock;
+      document.removeEventListener('mousemove', update);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchmove', update);
+      document.removeEventListener('touchend', onEnd);
+      
+      if(c.mode === 'hours') {
+        setTimeout(() => {
+          c.mode = 'mins';
+          this._renderClockFace();
+        }, 300);
+      }
+    };
+
+    face.addEventListener('mousedown', (e) => {
+      update(e);
+      document.addEventListener('mousemove', update);
+      document.addEventListener('mouseup', onEnd);
+    });
+    face.addEventListener('touchstart', (e) => {
+      update(e);
+      document.addEventListener('touchmove', update);
+      document.addEventListener('touchend', onEnd);
+    }, {passive: false});
+  },
+  _setAMPM(v) {
+    this.app_temp_clock.ampm = v;
+    document.getElementById('ampm-am').classList.toggle('active', v==='AM');
+    document.getElementById('ampm-pm').classList.toggle('active', v==='PM');
+    this.haptic();
+  },
+  _saveClockTime(id) {
+    const c = this.app_temp_clock;
+    const timeWithAMPM = `${c.h}:${c.m.toString().padStart(2,'0')} ${c.ampm}`;
+    
+    if (id.startsWith('notif-')) {
+      let h24 = c.h;
+      if (c.ampm === 'PM' && h24 < 12) h24 += 12;
+      if (c.ampm === 'AM' && h24 === 12) h24 = 0;
+      const time24 = `${h24.toString().padStart(2,'0')}:${c.m.toString().padStart(2,'0')}`;
+      localStorage.setItem('tw_' + id.replace(/-/g, '_'), time24);
+      this.updateNotifUI();
+      this.scheduleAllNotifications();
+      this.toast('Reminder set! ⏰', '⏰');
+    } else {
+      const k = this.state.viewDate.toLocaleDateString();
+      this.state.history[k][id] = timeWithAMPM;
+      this.save(); this.updateUI();
+      this.toast('Time saved! ⏰', '⏰');
+    }
     this.closeModal();
-    this.updateNotifUI();
-    this.scheduleAllNotifications();
-    this.toast('Time updated! ⏰', '⏰');
   },
   updateNotifUI() {
     const el = document.getElementById('notif-status');
