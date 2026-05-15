@@ -45,9 +45,29 @@ const app = {
     this.updateUI();
     this.updateGreeting();
     this.setupListeners();
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+      // Listen for SW updates
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'SW_UPDATED') {
+          const banner = document.getElementById('update-banner');
+          if (banner) banner.style.display = 'block';
+        }
+        if (event.data && event.data.type === 'RELOAD') {
+          window.location.reload(true);
+        }
+      });
+    }
     this.initNotifications();
     this.checkAuth();
+  },
+
+  applyUpdate() {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'FORCE_REFRESH' });
+    } else {
+      window.location.reload(true);
+    }
   },
 
   today() { return this.dateKey(new Date()); },

@@ -28,6 +28,24 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- ══ UPDATE BANNER ══ -->
+  <div id="update-banner" style="
+    display:none; position:fixed; top:0; left:0; right:0; z-index:9999;
+    background:linear-gradient(135deg,#3ecf8e,#38bdf8); color:#0d1a2e;
+    padding:12px 20px; text-align:center; font-weight:700; font-size:0.9rem;
+    box-shadow:0 4px 20px rgba(62,207,142,0.4); animation:slideDown 0.4s ease;
+  ">
+    🚀 New update available!
+    <button onclick="app.applyUpdate()" style="
+      margin-left:12px; background:#0d1a2e; color:#3ecf8e; border:none;
+      padding:6px 16px; border-radius:20px; font-weight:700; cursor:pointer; font-size:0.85rem;
+    ">Refresh Now</button>
+    <button onclick="document.getElementById('update-banner').style.display='none'" style="
+      margin-left:8px; background:rgba(0,0,0,0.15); color:#0d1a2e; border:none;
+      padding:6px 12px; border-radius:20px; font-weight:700; cursor:pointer; font-size:0.85rem;
+    ">Later</button>
+  </div>
+
   <!-- Confetti Canvas -->
   <canvas id="confetti-canvas"></canvas>
 
