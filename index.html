@@ -153,45 +153,7 @@
       </section>
 
       <section id="tracker-grid" class="tracker-grid">
-        <div class="tracker-card glass" data-id="wake">
-          <div class="card-top">
-            <div class="card-icon icon-wake"><i data-lucide="sunrise"></i></div>
-            <span class="win-check hidden"><i data-lucide="check"></i></span>
-          </div>
-          <h3>Wake Time</h3>
-          <p class="value" id="val-wake">--:--</p>
-          <div class="time-log-actions">
-            <button class="action-btn" onclick="app.logTime('wake')">Now</button>
-            <button class="action-btn" onclick="app.openClock('wake', 'Wake Time')">Manual</button>
-          </div>
-        </div>
-
-        <div class="tracker-card glass" data-id="bedtime">
-          <div class="card-top">
-            <div class="card-icon icon-sleep"><i data-lucide="moon"></i></div>
-            <span class="win-check hidden"><i data-lucide="check"></i></span>
-          </div>
-          <h3>Bed Time</h3>
-          <p class="value" id="val-bedtime">--:--</p>
-          <div class="time-log-actions">
-            <button class="action-btn" onclick="app.logTime('bedtime')">Now</button>
-            <button class="action-btn" onclick="app.openClock('bedtime', 'Bed Time')">Manual</button>
-          </div>
-        </div>
-
-        <div class="tracker-card glass full-width-card" data-id="sleep">
-          <div class="card-top">
-            <div class="card-icon icon-meditation"><i data-lucide="clock"></i></div>
-            <span class="win-check hidden"><i data-lucide="check"></i></span>
-          </div>
-          <h3>Sleep Duration <span class="calc-badge">auto</span></h3>
-          <div class="sleep-detail-row">
-            <span id="val-sleep" class="value">-- hrs</span>
-            <span id="sleep-breakdown" class="sleep-breakdown"></span>
-          </div>
-        </div>
-
-        <!-- Focus Timer -->
+        <!-- Row 1: Focus - Meditation -->
         <div class="tracker-card glass" data-id="focus">
           <div class="card-top">
             <div class="card-icon" style="background:rgba(249,115,22,0.15); color:var(--orange);"><i data-lucide="timer"></i></div>
@@ -218,6 +180,18 @@
           </div>
         </div>
 
+        <!-- Row 2: Steps - Water -->
+        <div class="tracker-card glass" data-id="steps">
+          <div class="card-top">
+            <div class="card-icon icon-steps"><i data-lucide="footprints"></i></div>
+            <span class="win-check hidden"><i data-lucide="check"></i></span>
+          </div>
+          <h3>Steps</h3>
+          <p class="value" id="val-steps">0</p>
+          <div class="progress-bar-mini"><div id="bar-steps" class="bar-fill bar-steps"></div></div>
+          <button class="action-btn" onclick="app.openStepsInput()">Update</button>
+        </div>
+
         <div class="tracker-card glass" data-id="water">
           <div class="card-top">
             <div class="card-icon icon-water"><i data-lucide="droplets"></i></div>
@@ -227,6 +201,57 @@
           <p class="value" id="val-water">0 / 8</p>
           <div class="water-glasses" id="water-glasses"></div>
           <button class="action-btn" onclick="app.adjustValue('water', 1)">+ Glass</button>
+        </div>
+
+        <!-- Row 3: Wake - Bedtime -->
+        <div class="tracker-card glass" data-id="wake">
+          <div class="card-top">
+            <div class="card-icon icon-wake"><i data-lucide="sunrise"></i></div>
+            <span class="win-check hidden"><i data-lucide="check"></i></span>
+          </div>
+          <h3>Wake Time</h3>
+          <p class="value" id="val-wake">--:--</p>
+          <div class="time-log-actions">
+            <button class="action-btn" onclick="app.logTime('wake')">Now</button>
+            <button class="action-btn" onclick="app.openClock('wake', 'Wake Time')">Manual</button>
+          </div>
+        </div>
+
+        <div class="tracker-card glass" data-id="bedtime">
+          <div class="card-top">
+            <div class="card-icon icon-sleep"><i data-lucide="moon"></i></div>
+            <span class="win-check hidden"><i data-lucide="check"></i></span>
+          </div>
+          <h3>Bed Time</h3>
+          <p class="value" id="val-bedtime">--:--</p>
+          <div class="time-log-actions">
+            <button class="action-btn" onclick="app.logTime('bedtime')">Now</button>
+            <button class="action-btn" onclick="app.openClock('bedtime', 'Bed Time')">Manual</button>
+          </div>
+        </div>
+
+        <!-- Row 4: Sleep Duration (Full Width) -->
+        <div class="tracker-card glass full-width-card" data-id="sleep">
+          <div class="card-top">
+            <div class="card-icon icon-meditation"><i data-lucide="clock"></i></div>
+            <span class="win-check hidden"><i data-lucide="check"></i></span>
+          </div>
+          <h3>Sleep Duration <span class="calc-badge">auto</span></h3>
+          <div class="sleep-detail-row">
+            <span id="val-sleep" class="value">-- hrs</span>
+            <span id="sleep-breakdown" class="sleep-breakdown"></span>
+          </div>
+        </div>
+
+        <!-- Row 5: Meals - Exercise -->
+        <div class="tracker-card glass" data-id="food">
+          <div class="card-top">
+            <div class="card-icon icon-food"><i data-lucide="utensils"></i></div>
+            <span class="win-check hidden"><i data-lucide="check"></i></span>
+          </div>
+          <h3>Meals</h3>
+          <div id="food-preview" class="food-preview"><p class="no-data">No meals yet</p></div>
+          <button class="action-btn" onclick="app.openMealTracker()">Manage</button>
         </div>
 
         <div class="tracker-card glass" data-id="exercise">
@@ -242,27 +267,7 @@
           </div>
         </div>
 
-        <div class="tracker-card glass" data-id="steps">
-          <div class="card-top">
-            <div class="card-icon icon-steps"><i data-lucide="footprints"></i></div>
-            <span class="win-check hidden"><i data-lucide="check"></i></span>
-          </div>
-          <h3>Steps</h3>
-          <p class="value" id="val-steps">0</p>
-          <div class="progress-bar-mini"><div id="bar-steps" class="bar-fill bar-steps"></div></div>
-          <button class="action-btn" onclick="app.openStepsInput()">Update</button>
-        </div>
-
-        <div class="tracker-card glass" data-id="food">
-          <div class="card-top">
-            <div class="card-icon icon-food"><i data-lucide="utensils"></i></div>
-            <span class="win-check hidden"><i data-lucide="check"></i></span>
-          </div>
-          <h3>Meals</h3>
-          <div id="food-preview" class="food-preview"><p class="no-data">No meals yet</p></div>
-          <button class="action-btn" onclick="app.openMealTracker()">Manage</button>
-        </div>
-
+        <!-- Row 6: Hobbies - Fasting -->
         <div class="tracker-card glass" data-id="hobbies">
           <div class="card-top">
             <div class="card-icon" style="background:rgba(168,85,247,0.15); color:#a855f7;"><i data-lucide="palette"></i></div>
@@ -273,17 +278,6 @@
           <button class="action-btn" onclick="app.openHobbyTracker()">Log Hobby</button>
         </div>
 
-        <div class="tracker-card glass" data-id="journal">
-          <div class="card-top">
-            <div class="card-icon icon-journal"><i data-lucide="notebook-pen"></i></div>
-            <span class="win-check hidden"><i data-lucide="check"></i></span>
-          </div>
-          <h3>Journal</h3>
-          <p class="value journal-preview" id="val-journal">Add a note…</p>
-          <button class="action-btn" onclick="app.openJournal()">Write</button>
-        </div>
-
-        <!-- Fasting (Secondary) -->
         <div class="tracker-card glass" data-id="fasting">
           <div class="card-top">
             <div class="card-icon" style="background:rgba(129,140,248,0.15); color:var(--purple);"><i data-lucide="zap"></i></div>
@@ -292,6 +286,17 @@
           <h3>Fasting</h3>
           <p class="value" id="val-fasting">0h</p>
           <button class="action-btn" id="fasting-btn" onclick="app.toggleFasting()">Start Fast</button>
+        </div>
+
+        <!-- Row 7: Journal (Full Width) -->
+        <div class="tracker-card glass full-width-card" data-id="journal">
+          <div class="card-top">
+            <div class="card-icon icon-journal"><i data-lucide="notebook-pen"></i></div>
+            <span class="win-check hidden"><i data-lucide="check"></i></span>
+          </div>
+          <h3>Journal</h3>
+          <p class="value journal-preview" id="val-journal">Add a note…</p>
+          <button class="action-btn" onclick="app.openJournal()">Write</button>
         </div>
       </section>
 
