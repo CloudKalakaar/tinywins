@@ -416,13 +416,13 @@ const app = {
 
     const aiHistory = JSON.parse(localStorage.getItem('tw_ai_boost_history') || '[]');
     
-    let prompt = "";
     if (type === 'joke') {
-      prompt = `You are a hilariously witty Indian stand-up comedian. Tell ${name} ONE short, side-splittingly funny Indian-style joke, observational humor, or wordplay.
-      Make it truly hilarious. Avoid these previous jokes: ${aiHistory.slice(-10).join('|')}.
+      prompt = `You are a hilariously witty Indian stand-up comedian. Tell ONE short, side-splittingly funny Indian-style joke, observational humor, or wordplay.
+      Make it truly hilarious, relatable, and bold. Do NOT use any names.
+      Avoid these previous jokes: ${aiHistory.slice(-10).join('|')}.
       RULES: Max 20 words. Be unique. NO markdown. Respond with ONLY the joke.`;
     } else {
-      prompt = `You are a manifestation expert and spiritual life coach. Give ${name} ONE powerful, affirmative manifestation or an "I AM" statement. 
+      prompt = `You are a manifestation expert and spiritual life coach. Give ONE powerful, affirmative manifestation or an "I AM" statement. 
       It should be bold, certain, and highly motivational. 
       Avoid these previous quotes: ${aiHistory.slice(-10).join('|')}.
       RULES: Max 15 words. Be unique. NO markdown. Respond with ONLY the manifestation.`;
