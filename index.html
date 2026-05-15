@@ -95,11 +95,18 @@
     </header>
 
     <div class="affirmation-banner glass">
-      <div class="affirmation-inner">
+      <div class="affirmation-inner" style="flex:1;">
         <p id="user-greeting" class="user-greeting">Hey there! 👋</p>
         <p id="affirmation">Every tiny win counts today.</p>
       </div>
-      <button onclick="app.setRandomAffirmation()" class="refresh-btn"><i data-lucide="refresh-cw"></i></button>
+      <div style="display:flex; gap:10px;">
+        <button class="boost-btn" onclick="app.getAIBoost('joke')" title="Get a Joke">
+          <i data-lucide="laugh"></i>
+        </button>
+        <button class="boost-btn" style="color:var(--accent); background:var(--accent-glow); border-color:rgba(62,207,142,0.15);" onclick="app.getAIBoost('motivation')" title="Get Motivation">
+          <i data-lucide="zap"></i>
+        </button>
+      </div>
     </div>
 
     <main id="view-dashboard">
@@ -318,7 +325,16 @@
           <option value="default">🌌 Default Navy</option>
           <option value="amoled" id="theme-amoled">🌑 Pure AMOLED</option>
           <option value="sunset" id="theme-sunset">🌅 Sunset Orange</option>
+          <option value="rose">🌸 Midnight Rose</option>
+          <option value="lavender">🔮 Deep Lavender</option>
         </select>
+      </div>
+
+      <div class="settings-group glass">
+        <h3>AI Brain (Groq)</h3>
+        <p class="setting-desc">Enter your API key to enable Smart Insights and Mood Boosters.</p>
+        <input type="password" id="groq-key" class="glass-input" placeholder="Enter gsk_..." style="width:100%" onchange="localStorage.setItem('tw_groq_key', this.value)">
+        <p style="font-size:0.75rem; color:var(--muted); margin-top:8px;">Get it for free at <a href="https://console.groq.com/keys" target="_blank" style="color:var(--accent);">console.groq.com</a></p>
       </div>
 
       <div class="settings-group glass">

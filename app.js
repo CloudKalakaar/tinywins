@@ -34,6 +34,12 @@ const app = {
   /* ─── INIT ─── */
   init() {
     this.loadState();
+    
+    // Onboarding Check
+    if (!localStorage.getItem('tw_username')) {
+      document.getElementById('onboarding').classList.remove('hidden');
+    }
+
     this.ensureDay(this.today());
     this.applyTheme(this.state.theme);
     this.updateUI();
@@ -45,6 +51,17 @@ const app = {
   },
 
   today() { return new Date().toLocaleDateString(); },
+
+  saveUserName() {
+    const input = document.getElementById('user-name-input');
+    const name = input.value.trim();
+    if (!name) return;
+    localStorage.setItem('tw_username', name);
+    document.getElementById('onboarding').classList.add('hidden');
+    this.updateGreeting();
+    this.haptic();
+    this.toast(`Welcome, ${name}! 🚀`, '🚀');
+  },
 
   loadState() {
     const s = localStorage.getItem('tw_history');
@@ -133,8 +150,12 @@ const app = {
     document.getElementById('mood-emoji').textContent = d.mood;
 
     // Trackers
+    const sleepHrs = this.calcSleepDuration(k);
+    d.sleep = sleepHrs; // Update current day's sleep state
+    
     this.setText('val-wake', d.wake || '--:--');
     this.setText('val-bedtime', d.bedtime || '--:--');
+    this.setText('val-sleep', sleepHrs > 0 ? `${sleepHrs} hrs` : '-- hrs');
     this.setText('val-meditation', `${d.meditation} min`);
     this.setText('val-exercise', `${d.exercise} min`);
     this.setText('val-steps', d.steps.toLocaleString());
@@ -150,19 +171,15 @@ const app = {
     this.setCard('water', d.water >= t.water);
     this.setCard('exercise', d.exercise >= t.exercise);
     this.setCard('steps', d.steps >= t.steps);
-    this.setCard('food', d.food && d.food.length > 0);
+    const mealCals = d.food.reduce((sum, f) => sum + (f.cals || 0), 0);
+    this.setText('val-food', mealCals > 0 ? `${mealCals} kcal` : 'Log meals');
+    this.setCard('food', d.food && d.food.length >= 3);
     this.setCard('journal', d.journal && d.journal.length > 10);
     this.setCard('focus', d.focus >= 25);
     this.setCard('fasting', d.fasting >= 16);
 
-    // Sleep
-    if (d.wake && d.bedtime) {
-      const hrs = this.calcSleep(d.bedtime, d.wake);
-      this.setText('val-sleep', `${hrs} hrs`);
-      this.setCard('sleep', hrs >= t.sleep);
-    } else {
-      this.setText('val-sleep', '-- hrs');
-    }
+    // Sleep card status is now handled by the sleepHrs value above
+    this.setCard('sleep', sleepHrs >= t.sleep);
 
     // Water glasses
     const wg = document.getElementById('water-glasses');
@@ -184,7 +201,17 @@ const app = {
     if (fp) {
       if (!d.food || !d.food.length) fp.innerHTML = '<p class="no-data">No meals yet</p>';
       else {
-        fp.innerHTML = d.food.map(f => `<div class="food-item-mini"><span>${f.type}</span><strong>${f.time}</strong></div>`).join('');
+        const listHtml = d.food.map(f => `
+          <div class="food-item-mini">
+            <span>${f.type}</span>
+            <strong style="color:var(--orange)">${f.cals || 0} kcal</strong>
+          </div>`).join('');
+        
+        fp.innerHTML = listHtml + `
+          <div class="food-item-mini" style="border-top:1px solid var(--border); margin-top:8px; padding-top:8px; opacity:0.8;">
+            <span style="font-weight:700;">Daily Total</span>
+            <strong style="color:var(--orange); font-weight:800;">${mealCals} kcal</strong>
+          </div>`;
       }
     }
 
@@ -222,15 +249,18 @@ const app = {
     const t = this.state.targets;
     let s = 0;
     if (d.wake) s++;
-    if (d.bedtime) s++;
     if (d.meditation >= t.meditation) s++;
     if (d.water >= t.water) s++;
     if (d.exercise >= t.exercise) s++;
     if (d.steps >= t.steps) s++;
-    if (d.food && d.food.length > 0) s++;
+    if (d.food && d.food.length >= 3) s++;
     if (d.journal && d.journal.length > 10) s++;
     if (d.focus >= 25) s++;
     if (d.fasting >= 16) s++;
+    
+    const sleepHrs = this.calcSleepDuration(k);
+    if (sleepHrs >= t.sleep) s++;
+    
     d._score = s;
     return s;
   },
@@ -247,11 +277,55 @@ const app = {
     return streak;
   },
 
-  calcSleep(start, end) {
-    const s = new Date(`2000/01/01 ${start}`);
-    const e = new Date(`2000/01/01 ${end}`);
-    if (e < s) e.setDate(e.getDate() + 1);
-    return Math.round((e - s) / (1000 * 60 * 60) * 10) / 10;
+  calcSleepDuration(k) {
+    const d = this.state.history[k];
+    if (!d || !d.wake) return 0;
+
+    const parseT = (t, dateStr) => {
+      const [time, ap] = t.split(' ');
+      let [h, m] = time.split(':').map(Number);
+      if (ap === 'PM' && h < 12) h += 12;
+      if (ap === 'AM' && h === 12) h = 0;
+      const res = new Date(dateStr);
+      res.setHours(h, m, 0, 0);
+      return res;
+    };
+
+    try {
+      const wDate = parseT(d.wake, k);
+      let bDate = null;
+
+      // 1. Check same day bedtime (if user went to bed after midnight, e.g. 1 AM)
+      if (d.bedtime) {
+        const sameDayBed = parseT(d.bedtime, k);
+        if (sameDayBed < wDate) bDate = sameDayBed;
+      }
+
+      // 2. If no same-day bedtime found before wake, check yesterday
+      if (!bDate) {
+        const prev = new Date(k);
+        prev.setDate(prev.getDate() - 1);
+        const yk = prev.toLocaleDateString();
+        const yd = this.state.history[yk];
+        if (yd && yd.bedtime) {
+          bDate = parseT(yd.bedtime, yk);
+        }
+      }
+
+      if (!bDate) return 0;
+      let diff = (wDate - bDate) / (1000 * 60 * 60);
+      
+      // Late-Night Correction:
+      // If the user logs an AM bedtime (e.g. 1 AM) on the "Yesterday" card,
+      // it's technically 24h+ before today's wake. We detect this and subtract 24h.
+      if (diff > 18 && bDate.getHours() < 12) {
+        diff -= 24;
+      }
+
+      return Math.max(0, Math.round(diff * 10) / 10);
+    } catch (e) {
+      return 0;
+    }
   },
 
   setCard(id, done) {
@@ -280,50 +354,99 @@ const app = {
     this.haptic();
   },
 
-  /* ─── AI INSIGHTS ─── */
+  /* ─── AI BOOST ─── */
+  async getAIBoost(type = 'motivation') {
+    this.haptic();
+    const name = localStorage.getItem('tw_username') || 'Me';
+    const affEl = document.getElementById('affirmation');
+    const originalText = affEl.textContent;
+    
+    affEl.textContent = type === 'joke' ? "✨ Cooking a joke..." : "⚡ Charging motivation...";
+    affEl.style.opacity = "0.6";
+
+    const aiHistory = JSON.parse(localStorage.getItem('tw_ai_boost_history') || '[]');
+    
+    let prompt = "";
+    if (type === 'joke') {
+      prompt = `You are a funny Indian stand-up comic. Tell ${name} ONE short, hilarious Indian-style joke or pun. 
+      Avoid these previous jokes: ${aiHistory.slice(-10).join('|')}.
+      RULES: Max 15 words. Be unique. NO markdown. Respond with ONLY the joke.`;
+    } else {
+      prompt = `You are a legendary life coach. Give ${name} ONE powerful, 1-sentence motivational boost or a "Tiny Win" challenge.
+      Avoid these previous quotes: ${aiHistory.slice(-10).join('|')}.
+      RULES: Max 12 words. Be unique. NO markdown. Respond with ONLY the quote.`;
+    }
+
+    const API_TOKEN = localStorage.getItem('tw_groq_key');
+    if (!API_TOKEN) {
+      this.toast('Please set Groq Key in Settings ⚙️', '⚠️');
+      affEl.textContent = originalText;
+      affEl.style.opacity = "1";
+      return;
+    }
+    try {
+      const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${API_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [{role: "user", content: prompt}],
+          temperature: 0.9, max_tokens: 50
+        })
+      }).then(r => r.json());
+
+      let quote = resp.choices[0].message.content.trim().replace(/^"|"$/g, '');
+      
+      // Update history
+      aiHistory.push(quote);
+      if (aiHistory.length > 20) aiHistory.shift();
+      localStorage.setItem('tw_ai_boost_history', JSON.stringify(aiHistory));
+
+      affEl.textContent = quote;
+      affEl.style.opacity = "1";
+      this.toast('AI Boost received! ✨', '✨');
+    } catch(e) {
+      affEl.textContent = originalText;
+      affEl.style.opacity = "1";
+      this.toast('Brain is recharging...', '🔋');
+    }
+  },
   async openInsights() {
     this.haptic();
     this.openModal('AI Brain 🧠', `<div style="text-align:center; padding:30px;"><i data-lucide="loader-2" class="spin" style="width:40px; height:40px; color:var(--accent);"></i><p style="color:var(--muted); margin-top:16px;">Analyzing your habits...</p></div>`);
     lucide.createIcons();
 
-    const history = Object.values(this.state.history).slice(-7);
+    const history = Object.values(this.state.history).filter(d => d._score > 0).slice(-7);
     if (history.length === 0) {
-      this.openModal('AI Brain 🧠', '<p style="text-align:center; padding:20px;">Start logging some tiny wins today!</p>');
+      this.openModal('AI Brain 🧠', '<p style="text-align:center; padding:20px;">I\'m ready to help, but you haven\'t logged any habits yet! Log your first tiny win today and I\'ll give you some insights. 🌱</p>');
       return;
     }
 
     const dataSummary = history.map(d => `Sleep:${d.sleep}h, Water:${d.water}/8, Exercise:${d.exercise}m, Mood:${d.mood}`).join(' | ');
-    const prompt = `<|system|>\nYou are an expert coach. Analyze this data and give ONE short, insightful sentence. No markdown.\n<|user|>\nData: ${dataSummary}\n<|assistant|>\n`;
-
+    const API_TOKEN = localStorage.getItem('tw_groq_key');
+    if (!API_TOKEN) {
+      this.openModal('AI Brain 🧠', '<p style="text-align:center; padding:20px;">Please set your <strong>Groq API Key</strong> in Settings to use AI features. 🌱</p>');
+      return;
+    }
+    
     try {
-      const API_TOKEN = "gsk_Ps7AouVDgKZK5FVx" + "pOpbWGdyb3FYid9galuidjPyIOEUqTqe8IhI";
-      const MODEL = "llama-3.3-70b-versatile";
-
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${API_TOKEN}`,
-          "Content-Type": "application/json"
-        },
+        headers: { "Authorization": `Bearer ${API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: MODEL,
+          model: "llama-3.3-70b-versatile",
           messages: [
-            { role: "system", content: "You are a sharp, motivating personal coach. Based on the user's 7-day habit data, give exactly ONE powerful, personalized insight or action tip. Be specific, not generic. Max 2 sentences. No markdown, no bullet points." },
-            { role: "user", content: `My last 7 days: ${dataSummary}` }
+            { role: "system", content: "You are a sharp, motivating personal coach. Give exactly ONE powerful insight. Max 2 sentences. No markdown." },
+            { role: "user", content: `Data: ${dataSummary}` }
           ],
-          max_tokens: 80,
-          temperature: 0.75
+          temperature: 0.7, max_tokens: 100
         })
-      });
+      }).then(r => r.json());
 
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error?.message || 'API Error');
-      const aiResponse = result.choices?.[0]?.message?.content?.trim() || "Keep winning!";
-
-      this.openModal('AI Brain 🧠', `<div class="insight-card" style="flex-direction:column; align-items:center; text-align:center; padding:30px 20px;"><i data-lucide="sparkles" style="width:32px; height:32px; margin-bottom:12px; color:var(--accent);"></i><p style="font-size:1.1rem; line-height:1.6; font-weight:600;">"${aiResponse}"</p></div>`);
-      lucide.createIcons();
+      const insight = resp.choices[0].message.content;
+      this.openModal('AI Brain 🧠', `<div style="padding:20px; line-height:1.6; text-align:center; font-size:1.1rem; color:var(--text); font-weight:600;">"${insight}"</div>`);
     } catch (e) {
-      this.openModal('AI Brain 🧠', `<p style="color:var(--danger); text-align:center; padding:20px;">Error: ${e.message}</p>`);
+      this.openModal('AI Brain 🧠', '<p style="text-align:center; padding:20px;">Brain is a bit foggy. Check back soon!</p>');
     }
   },
 
@@ -356,31 +479,91 @@ const app = {
   openMealTracker() {
     const k = this.state.viewDate.toLocaleDateString();
     const d = this.state.history[k];
+    const totalCals = d.food.reduce((sum, f) => sum + (f.cals || 0), 0);
     const renderMeals = () => `
+      <div style="background:rgba(249,115,22,0.08); border:1px solid rgba(249,115,22,0.15); border-radius:16px; padding:18px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+           <small style="color:var(--muted); text-transform:uppercase; letter-spacing:1px; font-weight:700; font-size:0.65rem;">Daily Total</small>
+           <div style="font-size:1.8rem; font-weight:900; color:var(--orange); line-height:1.1;">${totalCals} <span style="font-size:0.9rem; font-weight:500;">kcal</span></div>
+        </div>
+        <div style="text-align:right;">
+           <small style="color:var(--muted); font-size:0.65rem; text-transform:uppercase; font-weight:700;">Items</small>
+           <div style="font-size:1.4rem; font-weight:800;">${d.food.length}</div>
+        </div>
+      </div>
+
       <div class="meal-input-group">
-        <select id="meal-type" class="glass-input">
+        <select id="meal-type" class="glass-input" style="flex:0.8">
           <option>🍳 Breakfast</option>
           <option>🍱 Lunch</option>
           <option>🍽️ Dinner</option>
           <option>🍎 Snack</option>
         </select>
-        <input type="text" id="meal-desc" class="glass-input" placeholder="What did you eat?">
-        <button class="action-btn primary" onclick="app.addMeal()">Add Meal</button>
+        <div style="position:relative; flex:1.2;">
+          <input type="text" id="meal-desc" class="glass-input" placeholder="e.g. 2 Roti, Dal, Sabzi" style="width:100%">
+          <div id="ai-status" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:0.6rem; color:var(--accent); display:none; font-weight:700; text-transform:uppercase;">AI Analyzing...</div>
+        </div>
+        <button class="action-btn primary" onclick="app.addMeal()">Add</button>
       </div>
+
+      <p style="font-weight:700; color:var(--muted); font-size:0.75rem; text-transform:uppercase; margin:15px 0 10px; letter-spacing:1px;">Meal Breakdown</p>
+      
       <div class="meal-list">${d.food.map((f,i) => `
-        <div class="meal-item glass">
-          <div class="meal-item-info"><strong>${f.type}</strong><small>${f.desc}</small></div>
-          <button class="del-btn" onclick="app.deleteMeal(${i})"><i data-lucide="trash-2"></i></button>
+        <div class="meal-item glass" style="padding:15px; margin-bottom:12px; border-radius:14px; border:1px solid rgba(255,255,255,0.05);">
+          <div class="meal-item-info">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+              <span style="font-size:0.7rem; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; color:var(--muted); font-weight:600;">${f.time || ''}</span>
+              <strong style="color:var(--text); font-size:0.95rem;">${f.type}</strong>
+            </div>
+            <div style="color:var(--muted); font-size:0.85rem; line-height:1.4;">${f.desc}</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="text-align:right;">
+              <div style="color:var(--orange); font-weight:800; font-size:1rem;">${f.cals || 0}</div>
+              <small style="color:var(--muted); font-size:0.6rem; text-transform:uppercase; font-weight:700;">kcal</small>
+            </div>
+            <button class="del-btn" style="background:rgba(248,113,113,0.1); color:var(--danger); width:32px; height:32px; border-radius:8px;" onclick="app.deleteMeal(${i})"><i data-lucide="trash-2" style="width:16px;"></i></button>
+          </div>
         </div>`).join('')}
       </div>`;
-    this.openModal('Meals', renderMeals());
+    this.openModal('Meals & Nutrition', renderMeals());
+    lucide.createIcons();
   },
-  addMeal() {
+  async addMeal() {
     const k = this.state.viewDate.toLocaleDateString();
     const type = document.getElementById('meal-type').value;
     const desc = document.getElementById('meal-desc').value.trim() || 'Logged';
-    this.state.history[k].food.push({ type, desc, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
+    
+    const meal = { type, desc, cals: 0, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
+    this.state.history[k].food.push(meal);
+    
     this.save(); this.updateUI(); this.openMealTracker(); this.haptic();
+    
+    // AI Calorie Estimation
+    const statusEl = document.getElementById('ai-status');
+    if (statusEl) statusEl.style.display = 'block';
+    
+    const cals = await this.aiEstimateCalories(desc);
+    meal.cals = cals;
+    
+    this.save(); this.updateUI(); this.openMealTracker();
+  },
+  async aiEstimateCalories(text) {
+    const API_TOKEN = localStorage.getItem('tw_groq_key');
+    if (!API_TOKEN) return 0;
+    try {
+      const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${API_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [{role: "user", content: `Expert Indian Nutritionist: Estimate total calories for "${text}" (e.g. 2 rotis, bowl of dal, subji). Return ONLY the number.`}],
+          temperature: 0.1, max_tokens: 10
+        })
+      }).then(r => r.json());
+      const c = parseInt(resp.choices[0].message.content.replace(/\D/g,''));
+      return isNaN(c) ? 0 : c;
+    } catch(e) { return 0; }
   },
   deleteMeal(i) {
     const k = this.state.viewDate.toLocaleDateString();
@@ -688,7 +871,7 @@ const app = {
     `).join('');
   },
   updateGreeting() {
-    const name = localStorage.getItem('tw_user_name') || 'Friend';
+    const name = localStorage.getItem('tw_username') || 'Me';
     const hour = new Date().getHours();
     const greet = hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : 'Evening';
     this.setText('user-greeting', `Good ${greet}, ${name}!`);
@@ -699,38 +882,76 @@ const app = {
   },
   openFocusTimer() {
     if(this.focusInterval) {
-      this.toast('Session already active', '⚠️'); return;
+      this.openModal('Focus Session', `
+        <div style="text-align:center; padding:30px;">
+          <div id="focus-countdown" style="font-size:3.5rem; font-weight:800; color:var(--orange); margin-bottom:15px;">--:--</div>
+          <p id="focus-status">Stay focused. You got this!</p>
+          <button class="action-btn danger-btn" style="margin-top:20px; width:100%" onclick="app.stopFocus()">Stop Session</button>
+        </div>`);
+      this._updateFocusUI();
+      return;
     }
-    let sec = 25 * 60;
+    
     const html = `
+      <div style="text-align:center; padding:20px;">
+        <p style="color:var(--muted); margin-bottom:20px;">Choose your focus duration:</p>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:25px;">
+           <button class="focus-preset" onclick="app.startFocus(15)">15 mins</button>
+           <button class="focus-preset" onclick="app.startFocus(25)">25 mins</button>
+           <button class="focus-preset" onclick="app.startFocus(45)">45 mins</button>
+           <button class="focus-preset" onclick="app.startFocus(60)">60 mins</button>
+        </div>
+        <div style="border-top:1px solid var(--border); padding-top:20px; display:flex; align-items:center; justify-content:center; gap:10px;">
+          <input type="number" id="custom-focus" class="glass-input" value="30" min="1" max="180" style="width:80px; text-align:center;">
+          <span style="font-weight:600;">min</span>
+          <button class="action-btn primary" onclick="app.startFocus()">Start</button>
+        </div>
+      </div>
+    `;
+    this.openModal('Focus Setup', html);
+  },
+  startFocus(mins) {
+    if (!mins) mins = parseInt(document.getElementById('custom-focus').value) || 25;
+    this.haptic();
+    this.closeModal();
+    
+    let sec = mins * 60;
+    this._currentFocusSec = sec;
+
+    this.openModal('Focus Session', `
       <div style="text-align:center; padding:30px;">
-        <div id="focus-countdown" style="font-size:3.5rem; font-weight:800; color:var(--orange); margin-bottom:15px;">25:00</div>
+        <div id="focus-countdown" style="font-size:3.5rem; font-weight:800; color:var(--orange); margin-bottom:15px;">${mins}:00</div>
         <p id="focus-status">Stay focused. You got this!</p>
         <button class="action-btn danger-btn" style="margin-top:20px; width:100%" onclick="app.stopFocus()">Stop Session</button>
-      </div>`;
-    this.openModal('Focus Session', html);
-    
+      </div>`);
+
     this.focusInterval = setInterval(() => {
       sec--;
-      const m = Math.floor(sec/60), s = sec%60;
-      const el = document.getElementById('focus-countdown');
-      if(el) el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
-      
+      this._currentFocusSec = sec;
+      this._updateFocusUI();
+
       if(sec <= 0) {
-        this.stopFocus(true);
+        clearInterval(this.focusInterval);
+        this.focusInterval = null;
+        this.adjustValue('focus', mins);
+        this.closeModal();
+        this.toast(`Focus session complete! +${mins}m`, '🎯');
+        this.haptic();
+        this._showNotif('Focus Complete! 🏆', `You crushed a ${mins} minute session!`);
       }
     }, 1000);
   },
-  stopFocus(completed = false) {
+  _updateFocusUI() {
+    const el = document.getElementById('focus-countdown');
+    if(!el || this._currentFocusSec === undefined) return;
+    const m = Math.floor(this._currentFocusSec/60), s = this._currentFocusSec%60;
+    el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+  },
+  stopFocus() {
     clearInterval(this.focusInterval);
     this.focusInterval = null;
     this.closeModal();
-    if(completed) {
-      this.adjustValue('focus', 25);
-      this.toast('Session complete! 🎯', '🎯');
-    } else {
-      this.toast('Session cancelled', '🛑');
-    }
+    this.toast('Session stopped', '🛑');
   },
   toggleFasting() {
     const k = this.today();
