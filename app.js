@@ -357,7 +357,7 @@ const app = {
 
   /* ─── ACTIONS ─── */
   logTime(id) {
-    const k = this.state.viewDate.toLocaleDateString();
+    const k = this.dateKey(this.state.viewDate);
     this.state.history[k][id] = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:true});
     this.save(); this.updateUI();
     this.toast('Time logged! ⏰', '⏰');
@@ -365,7 +365,7 @@ const app = {
   },
 
   adjustValue(id, amt) {
-    const k = this.state.viewDate.toLocaleDateString();
+    const k = this.dateKey(this.state.viewDate);
     this.state.history[k][id] = Math.max(0, (this.state.history[k][id] || 0) + amt);
     this.save(); this.updateUI();
     this.haptic();
@@ -468,7 +468,7 @@ const app = {
   handleModalOverlayClick(e) { if(e.target.id === 'modal-container') this.closeModal(); },
 
   openMoodPicker() {
-    const k = this.state.viewDate.toLocaleDateString();
+    const k = this.dateKey(this.state.viewDate);
     const curr = this.state.history[k].mood;
     const html = `<div class="mood-grid">` + MOODS.map(m => `
       <button class="mood-btn ${m.emoji===curr?'selected':''}" onclick="app.setMood('${m.emoji}')">
@@ -478,13 +478,13 @@ const app = {
     this.openModal('How are you feeling?', html);
   },
   setMood(m) {
-    const k = this.state.viewDate.toLocaleDateString();
+    const k = this.dateKey(this.state.viewDate);
     this.state.history[k].mood = m;
     this.save(); this.updateUI(); this.closeModal(); this.haptic();
   },
 
   openMealTracker() {
-    const k = this.state.viewDate.toLocaleDateString();
+    const k = this.dateKey(this.state.viewDate);
     const d = this.state.history[k];
     const totalCals = d.food.reduce((sum, f) => sum + (f.cals || 0), 0);
     const renderMeals = () => `
@@ -537,7 +537,7 @@ const app = {
     lucide.createIcons();
   },
   async addMeal() {
-    const k = this.state.viewDate.toLocaleDateString();
+    const k = this.dateKey(this.state.viewDate);
     const type = document.getElementById('meal-type').value;
     const desc = document.getElementById('meal-desc').value.trim() || 'Logged';
     
@@ -572,29 +572,29 @@ const app = {
     } catch(e) { return 0; }
   },
   deleteMeal(i) {
-    const k = this.state.viewDate.toLocaleDateString();
+    const k = this.dateKey(this.state.viewDate);
     this.state.history[k].food.splice(i, 1);
     this.save(); this.updateUI(); this.openMealTracker(); this.haptic();
   },
 
   openJournal() {
-    const k = this.state.viewDate.toLocaleDateString();
+    const k = this.dateKey(this.state.viewDate);
     const txt = this.state.history[k].journal;
     this.openModal('Journal', `<textarea id="journal-input" class="glass-input journal-textarea" placeholder="Reflect on your day...">${txt}</textarea><button class="action-btn primary" style="width:100%; margin-top:12px;" onclick="app.saveJournal()">Save Entry</button>`);
   },
   saveJournal() {
-    const k = this.state.viewDate.toLocaleDateString();
+    const k = this.dateKey(this.state.viewDate);
     this.state.history[k].journal = document.getElementById('journal-input').value;
     this.save(); this.updateUI(); this.closeModal(); this.toast('Journal saved! 📖', '📖');
   },
 
   openStepsInput() {
-    const k = this.state.viewDate.toLocaleDateString();
+    const k = this.dateKey(this.state.viewDate);
     const val = this.state.history[k].steps;
     this.openModal('Steps', `<div class="meal-input-group"><input type="number" id="steps-input" class="glass-input" value="${val}" placeholder="Enter steps count..."><button class="action-btn primary" onclick="app.saveSteps()">Save Steps</button></div>`);
   },
   saveSteps() {
-    const k = this.state.viewDate.toLocaleDateString();
+    const k = this.dateKey(this.state.viewDate);
     this.state.history[k].steps = parseInt(document.getElementById('steps-input').value) || 0;
     this.save(); this.updateUI(); this.closeModal(); this.toast('Steps updated! 👟', '👟');
   },
@@ -619,7 +619,7 @@ const app = {
     if (id.startsWith('notif-')) {
       existing = localStorage.getItem('tw_' + id.replace(/-/g, '_')) || '';
     } else {
-      const k = this.state.viewDate.toLocaleDateString();
+      const k = this.dateKey(this.state.viewDate);
       existing = this.state.history[k][id] || '';
     }
 
@@ -770,7 +770,7 @@ const app = {
       this.scheduleAllNotifications();
       this.toast('Reminder time set! ⏰', '⏰');
     } else {
-      const k = this.state.viewDate.toLocaleDateString();
+      const k = this.dateKey(this.state.viewDate);
       this.state.history[k][id] = timeWithAMPM;
       this.save(); this.updateUI();
       this.toast('Time set! ⏰', '⏰');
@@ -791,7 +791,7 @@ const app = {
 
     for (let i=0; i<start; i++) grid.innerHTML += '<div></div>';
     for (let day=1; day<=last; day++) {
-      const k = new Date(d.getFullYear(), d.getMonth(), day).toLocaleDateString();
+      const k = this.dateKey(new Date(d.getFullYear(), d.getMonth(), day));
       const hist = this.state.history[k];
       const score = hist ? hist._score : 0;
       const status = score >= 8 ? 'high-win' : score >= 4 ? 'mid-win' : score > 0 ? 'low-win' : '';
@@ -809,7 +809,7 @@ const app = {
     const t = this.state.targets;
 
     for (let day=1; day<=lastDay; day++) {
-      const k = new Date(year, month, day).toLocaleDateString();
+      const k = this.dateKey(new Date(year, month, day));
       const h = this.state.history[k];
       if (h && h._score !== undefined) {
         loggedDays++;
@@ -998,7 +998,7 @@ const app = {
   },
   clearTodayData() {
     if(confirm('Clear today\'s data?')) {
-      const k = this.state.viewDate.toLocaleDateString();
+      const k = this.dateKey(this.state.viewDate);
       delete this.state.history[k]; this.ensureDay(k);
       this.save(); this.updateUI(); this.toast('Data cleared', '🗑️');
     }
@@ -1069,7 +1069,7 @@ const app = {
     if (id.startsWith('notif-')) {
       existing = localStorage.getItem('tw_' + id.replace(/-/g, '_')) || '';
     } else {
-      const k = this.state.viewDate.toLocaleDateString();
+      const k = this.dateKey(this.state.viewDate);
       existing = this.state.history[k][id] || '';
     }
 
@@ -1219,7 +1219,7 @@ const app = {
       this.scheduleAllNotifications();
       this.toast('Reminder set! ⏰', '⏰');
     } else {
-      const k = this.state.viewDate.toLocaleDateString();
+      const k = this.dateKey(this.state.viewDate);
       this.state.history[k][id] = timeWithAMPM;
       this.save(); this.updateUI();
       this.toast('Time saved! ⏰', '⏰');
