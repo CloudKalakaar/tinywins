@@ -433,7 +433,11 @@ const app = {
       return;
     }
 
-    const dataSummary = history.map(d => `Sleep:${d.sleep}h, Water:${d.water}/8, Exercise:${d.exercise}m, Mood:${d.mood}`).join(' | ');
+    const dataSummary = history.map(d => {
+      const meals = (d.food || []).map(f => `${f.type}:${f.desc}(${f.cals}cals)`).join(', ');
+      return `Sleep:${d.sleep}h, Water:${d.water}/8, Exercise:${d.exercise}m, Mood:${d.mood}, Meals:[${meals}]`;
+    }).join(' | ');
+
     const API_TOKEN = "gsk_Ps7AouVDgKZK5FVx" + "pOpbWGdyb3FYid9galuidjPyIOEUqTqe8IhI";
     
     try {
@@ -443,10 +447,10 @@ const app = {
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
           messages: [
-            { role: "system", content: "You are a sharp, motivating personal coach. Give exactly ONE powerful insight. Max 2 sentences. No markdown." },
-            { role: "user", content: `Data: ${dataSummary}` }
+            { role: "system", content: "You are a sharp, motivating personal coach and nutritionist. Analyze the user's habit and meal patterns (specifically looking at Indian/South Indian foods if present). Give exactly ONE powerful insight or suggestion. Max 2-3 sentences. No markdown." },
+            { role: "user", content: `History: ${dataSummary}` }
           ],
-          temperature: 0.7, max_tokens: 100
+          temperature: 0.7, max_tokens: 150
         })
       }).then(r => r.json());
 
@@ -563,7 +567,10 @@ const app = {
         headers: { "Authorization": `Bearer ${API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
-          messages: [{role: "user", content: `Expert Indian Nutritionist: Estimate total calories for "${text}" (e.g. 2 rotis, bowl of dal, subji). Return ONLY the number.`}],
+          messages: [{role: "user", content: `Expert Indian Nutritionist: Estimate total calories for "${text}".
+          IMPORTANT: Be very precise about South Indian food. Differentiate additions (e.g. "curd rice" ~350, "curd rice and mixture" ~550). 
+          Consider portion: Mixture/Sev is very calorie-dense (~550 per 100g). 
+          Return ONLY the numeric total.`}],
           temperature: 0.1, max_tokens: 10
         })
       }).then(r => r.json());
