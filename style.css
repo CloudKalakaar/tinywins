@@ -52,13 +52,13 @@
 }
 
 [data-theme="babypink"] {
-  --bg: #fdf2f8;
-  --surface: rgba(255, 255, 255, 0.8);
-  --border: rgba(244, 114, 182, 0.2);
-  --accent: #ec4899;
-  --accent-glow: rgba(236, 72, 153, 0.15);
-  --text: #831843;
-  --muted: #be185d;
+  --bg: #fff1f2; /* Rose 50 */
+  --surface: rgba(255, 255, 255, 0.6);
+  --border: rgba(225, 29, 72, 0.1);
+  --accent: #e11d48;
+  --accent-glow: rgba(225, 29, 72, 0.1);
+  --text: #4c0519;
+  --muted: #9f1239;
 }
 
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -68,8 +68,8 @@ body {
   font-family: var(--body);
   background: var(--bg);
   background-image:
-    radial-gradient(ellipse 120% 60% at 15% 10%, rgba(62,207,142,0.06) 0%, transparent 100%),
-    radial-gradient(ellipse 120% 60% at 85% 90%, rgba(249,115,22,0.05) 0%, transparent 100%);
+    radial-gradient(ellipse 120% 60% at 15% 10%, var(--accent-glow) 0%, transparent 100%),
+    radial-gradient(ellipse 120% 60% at 85% 90%, var(--accent-glow) 0%, transparent 100%);
   background-attachment: fixed;
   color: var(--text);
   overflow-x: hidden;
@@ -238,8 +238,9 @@ h1 {
 .progress-section {
   display: flex; justify-content: space-between; align-items: center;
   padding: 22px 24px; margin-bottom: 20px;
-  background: linear-gradient(135deg, rgba(56,189,248,.08), rgba(22,33,50,.8));
-  box-shadow: 0 12px 40px -8px rgba(0,0,0,.5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 40px -8px rgba(0,0,0,0.15);
 }
 .progress-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
 .progress-info h2 { font-family: var(--heading); font-size: 1.5rem; margin: 4px 0 8px; }
