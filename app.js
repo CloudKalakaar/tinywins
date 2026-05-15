@@ -180,7 +180,7 @@ const app = {
 
     // Progress
     const score = this.calcScore(k);
-    const total = 10;
+    const total = 11;
     this.setText('progress-stats', `${score}/${total} wins`);
     const pct = Math.round((score/total)*100);
     this.setText('progress-percent', `${pct}%`);
@@ -305,7 +305,20 @@ const app = {
     
     const sleepHrs = this.calcSleepDuration(new Date(k));
     if (sleepHrs >= t.sleep) s++;
+    if (d.hobbies) s++;
     
+    // Core 8 requested by user
+    const core8 = [
+      d.focus >= 25,
+      sleepHrs >= t.sleep,
+      d.meditation >= t.meditation,
+      d.water >= t.water,
+      d.exercise >= t.exercise,
+      d.steps >= t.steps,
+      d.food && d.food.length >= 3,
+      !!d.hobbies
+    ];
+    d._completed = core8.every(Boolean);
     d._score = s;
     return s;
   },
@@ -315,7 +328,7 @@ const app = {
     while (true) {
       const k = this.dateKey(d);
       const day = this.state.history[k];
-      if (!day || day._score === 0) break;
+      if (!day || !day._completed) break;
       streak++;
       d.setDate(d.getDate()-1);
     }
@@ -868,7 +881,8 @@ const app = {
       const k = this.dateKey(new Date(d.getFullYear(), d.getMonth(), day));
       const hist = this.state.history[k];
       const score = hist ? hist._score : 0;
-      const status = score >= 8 ? 'high-win' : score >= 4 ? 'mid-win' : score > 0 ? 'low-win' : '';
+      const completed = hist ? hist._completed : false;
+      const status = completed ? 'perfect-win' : score >= 8 ? 'high-win' : score >= 4 ? 'mid-win' : score > 0 ? 'low-win' : '';
       grid.innerHTML += `<div class="calendar-day ${status}" onclick="app.viewDate('${k}')">
         <span class="day-num">${day}</span><div class="progress-dot"></div>
       </div>`;
@@ -893,8 +907,14 @@ const app = {
         if (h.water >= t.water) stats.water++;
         if (h.exercise >= t.exercise) stats.exercise++;
         if (h.steps >= t.steps) stats.steps++;
+        if (h._completed) stats.perfectDays = (stats.perfectDays || 0) + 1;
       }
     }
+
+    this.setText('stat-perfect-days', stats.perfectDays || 0);
+    this.setText('stat-active-days', loggedDays);
+    const avgScore = loggedDays ? Object.values(this.state.history).reduce((a,b)=>a+(b._score||0),0)/loggedDays : 0;
+    this.setText('stat-avg-progress', Math.round((avgScore/11)*100)+'%');
 
     Object.keys(stats).forEach(key => {
       const pct = loggedDays ? Math.round((stats[key] / loggedDays) * 100) : 0;

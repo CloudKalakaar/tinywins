@@ -479,6 +479,12 @@ h1 {
 .calendar-day.high-win .progress-dot { background:var(--success); box-shadow:0 0 6px var(--success); }
 .calendar-day.mid-win  .progress-dot { background:var(--accent); }
 .calendar-day.low-win  .progress-dot { background:var(--warning); }
+.calendar-day.perfect-win { border-color: #fbbf24; background: rgba(251,191,36, 0.05); }
+.calendar-day.perfect-win .progress-dot { 
+  background:#fbbf24; 
+  box-shadow:0 0 10px #fbbf24, 0 0 20px rgba(251,191,36,0.4); 
+  width: 7px; height: 7px;
+}
 
 .month-stats-grid {
   display:grid; grid-template-columns:repeat(2,1fr);
