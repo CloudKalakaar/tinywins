@@ -27,7 +27,7 @@ const app = {
     viewDate: new Date(),
     calendarDate: new Date(),
     history: {},
-    targets: { meditation:20, water:8, exercise:30, steps:10000, sleep:7 },
+    targets: { meditation:20, water:8, exercise:30, steps:10000, sleep:7, calories:2000 },
     theme: localStorage.getItem('tw_theme') || 'default'
   },
 
@@ -216,8 +216,9 @@ const app = {
     this.setCard('exercise', d.exercise >= t.exercise);
     this.setCard('steps', d.steps >= t.steps);
     const mealCals = d.food.reduce((sum, f) => sum + (f.cals || 0), 0);
-    this.setText('val-food', mealCals > 0 ? `${mealCals} kcal` : 'Log meals');
-    this.setCard('food', d.food && d.food.length >= 3);
+    const mealWin = Math.abs(mealCals - t.calories) <= 200;
+    this.setText('val-food', mealCals > 0 ? `${mealCals} / ${t.calories} kcal` : 'Log meals');
+    this.setCard('food', mealWin);
     this.setCard('journal', d.journal && d.journal.length > 10);
     this.setCard('focus', d.focus >= 25);
     this.setCard('fasting', d.fasting >= 16);
@@ -281,6 +282,9 @@ const app = {
     const ts = document.getElementById('theme-select');
     if (ts) ts.value = this.state.theme;
 
+    const sc = document.getElementById('set-calories');
+    if (sc) sc.value = t.calories || 2000;
+
     const gfc = document.getElementById('gf-client-id');
     if (gfc) gfc.value = localStorage.getItem('tw_gf_client_id') || '';
     const gfs = document.getElementById('gf-status-text');
@@ -298,7 +302,9 @@ const app = {
     if (d.water >= t.water) s++;
     if (d.exercise >= t.exercise) s++;
     if (d.steps >= t.steps) s++;
-    if (d.food && d.food.length >= 3) s++;
+    const mealCals = d.food.reduce((sum, f) => sum + (f.cals || 0), 0);
+    const mealWin = Math.abs(mealCals - t.calories) <= 200;
+    if (mealWin) s++;
     if (d.journal && d.journal.length > 10) s++;
     if (d.focus >= 25) s++;
     if (d.fasting >= 16) s++;
@@ -315,7 +321,7 @@ const app = {
       d.water >= t.water,
       d.exercise >= t.exercise,
       d.steps >= t.steps,
-      d.food && d.food.length >= 3,
+      mealWin,
       !!d.hobbies
     ];
     d._completed = core8.every(Boolean);
@@ -692,7 +698,8 @@ const app = {
     const exercise = parseInt(document.getElementById('set-exercise').value);
     const steps = parseInt(document.getElementById('set-steps').value);
     const sleep = parseInt(document.getElementById('set-sleep').value);
-    this.state.targets = { meditation, water, exercise, steps, sleep };
+    const calories = parseInt(document.getElementById('set-calories').value);
+    this.state.targets = { meditation, water, exercise, steps, sleep, calories };
     localStorage.setItem('tw_targets', JSON.stringify(this.state.targets));
     this.updateUI(); this.toast('Targets saved! 🎯', '🎯'); this.haptic();
   },
