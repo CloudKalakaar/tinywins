@@ -27,7 +27,7 @@ const app = {
     viewDate: new Date(),
     calendarDate: new Date(),
     history: {},
-    targets: { meditation:20, water:8, exercise:30, steps:10000, sleep:7, calories:2000 },
+    targets: { meditation:20, water:8, exercise:30, steps:10000, sleep:7, calories:2000, focus:25 },
     theme: localStorage.getItem('tw_theme') || 'default'
   },
 
@@ -220,7 +220,7 @@ const app = {
     this.setText('val-food', mealCals > 0 ? `${mealCals} / ${t.calories} kcal` : 'Log meals');
     this.setCard('food', mealWin);
     this.setCard('journal', d.journal && d.journal.length > 10);
-    this.setCard('focus', d.focus >= 25);
+    this.setCard('focus', d.focus >= t.focus);
     this.setCard('fasting', d.fasting >= 16);
     this.setCard('hobbies', !!d.hobbies);
 
@@ -284,6 +284,9 @@ const app = {
 
     const sc = document.getElementById('set-calories');
     if (sc) sc.value = t.calories || 2000;
+    
+    const sf = document.getElementById('set-focus');
+    if (sf) sf.value = t.focus || 25;
 
     const gfc = document.getElementById('gf-client-id');
     if (gfc) gfc.value = localStorage.getItem('tw_gf_client_id') || '';
@@ -306,7 +309,7 @@ const app = {
     const mealWin = Math.abs(mealCals - t.calories) <= 200;
     if (mealWin) s++;
     if (d.journal && d.journal.length > 10) s++;
-    if (d.focus >= 25) s++;
+    if (d.focus >= t.focus) s++;
     if (d.fasting >= 16) s++;
     
     const sleepHrs = this.calcSleepDuration(new Date(k));
@@ -315,7 +318,7 @@ const app = {
     
     // Core 8 requested by user
     const core8 = [
-      d.focus >= 25,
+      d.focus >= t.focus,
       sleepHrs >= t.sleep,
       d.meditation >= t.meditation,
       d.water >= t.water,
@@ -699,7 +702,8 @@ const app = {
     const steps = parseInt(document.getElementById('set-steps').value);
     const sleep = parseInt(document.getElementById('set-sleep').value);
     const calories = parseInt(document.getElementById('set-calories').value);
-    this.state.targets = { meditation, water, exercise, steps, sleep, calories };
+    const focus = parseInt(document.getElementById('set-focus').value);
+    this.state.targets = { meditation, water, exercise, steps, sleep, calories, focus };
     localStorage.setItem('tw_targets', JSON.stringify(this.state.targets));
     this.updateUI(); this.toast('Targets saved! 🎯', '🎯'); this.haptic();
   },
