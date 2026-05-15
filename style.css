@@ -52,13 +52,13 @@
 }
 
 [data-theme="babypink"] {
-  --bg: #f4d3d9; /* Accurate match to the tumbler body */
-  --surface: rgba(255, 255, 255, 0.75);
-  --border: rgba(236, 72, 153, 0.15);
-  --accent: #ec4899; /* Accurate match to the vibrant band */
+  --bg: #e2abb4; /* Deeper dusty rose than before */
+  --surface: rgba(255, 255, 255, 0.8);
+  --border: rgba(236, 72, 153, 0.1);
+  --accent: #ec4899;
   --accent-glow: rgba(236, 72, 153, 0.15);
-  --text: #701a3d;
-  --muted: #9d174d;
+  --text: #540b2a;
+  --muted: #831843;
 }
 
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
