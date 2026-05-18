@@ -75,6 +75,48 @@
     </div>
   </div>
 
+  <!-- ═══════════ PROFILE UPGRADE MODAL ═══════════ -->
+  <div id="profile-upgrade" class="onboarding-overlay hidden">
+    <div class="onboarding-card" style="max-width: 400px;">
+      <h2 class="onboarding-title" style="font-size:1.8rem; margin-bottom:10px;">✨ Upgrade Complete</h2>
+      <p class="onboarding-sub" style="margin-bottom:20px;">To power up your AI coach and automatically calculate your precise calorie & macro targets, please tell us about yourself.</p>
+      
+      <div class="onboarding-form">
+        <div class="setting-row" style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+          <label style="color:var(--muted); font-size:0.9rem; font-weight:600;">Age</label>
+          <input type="number" id="upg-age" class="glass-input" style="width:100px" placeholder="e.g. 25" min="10" max="120">
+        </div>
+        <div class="setting-row" style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+          <label style="color:var(--muted); font-size:0.9rem; font-weight:600;">Gender</label>
+          <select id="upg-gender" class="glass-input" style="width:100px">
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+          </select>
+        </div>
+        <div class="setting-row" style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+          <label style="color:var(--muted); font-size:0.9rem; font-weight:600;">Height (cm)</label>
+          <input type="number" id="upg-height" class="glass-input" style="width:100px" placeholder="e.g. 175">
+        </div>
+        <div class="setting-row" style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+          <label style="color:var(--muted); font-size:0.9rem; font-weight:600;">Weight (kg)</label>
+          <input type="number" id="upg-weight" class="glass-input" style="width:100px" placeholder="e.g. 70">
+        </div>
+        <div class="setting-row" style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+          <label style="color:var(--muted); font-size:0.9rem; font-weight:600;">Goal</label>
+          <select id="upg-goal" class="glass-input" style="flex:1; margin-left:10px;">
+            <option value="fatloss">🔥 Fat Loss</option>
+            <option value="maintain">⚖️ Maintenance</option>
+            <option value="muscle">💪 Muscle Gain</option>
+          </select>
+        </div>
+
+        <button class="onboarding-btn" onclick="app.saveProfileUpgrade()" style="margin-top:15px;">
+          Calculate Targets <i data-lucide="zap"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div id="app">
     <!-- ═══════════════════════ HEADER ═══════════════════════ -->
     <header class="app-header">
@@ -260,11 +302,8 @@
             <span class="win-check hidden"><i data-lucide="check"></i></span>
           </div>
           <h3>Exercise</h3>
-          <p class="value" id="val-exercise">0 min</p>
-          <div class="counter-actions">
-            <button onclick="app.adjustValue('exercise', -10)">-</button>
-            <button onclick="app.adjustValue('exercise', 10)">+</button>
-          </div>
+          <div id="exercise-preview" class="food-preview" style="margin-top:10px;"><p class="no-data">No workouts yet</p></div>
+          <button class="action-btn" onclick="app.openExerciseTracker()" style="margin-top:10px;">Log Workout</button>
         </div>
 
         <!-- Row 6: Hobbies - Journal -->
@@ -335,6 +374,39 @@
         <div class="habit-bar-row"><label>Water</label><div class="habit-bar"><div id="mhb-water" class="hb-fill hb-water"></div></div><span id="mhp-water">0%</span></div>
         <div class="habit-bar-row"><label>Exercise</label><div class="habit-bar"><div id="mhb-exercise" class="hb-fill hb-exercise"></div></div><span id="mhp-exercise">0%</span></div>
         <div class="habit-bar-row"><label>Steps</label><div class="habit-bar"><div id="mhb-steps" class="hb-fill hb-steps"></div></div><span id="mhp-steps">0%</span></div>
+      </div>
+    </main>
+
+    <main id="view-energy" class="hidden energy-view">
+      <h2 class="section-title">Energy Dashboard</h2>
+      
+      <div class="settings-group glass" style="margin-bottom: 20px;">
+        <h3>Time Filter</h3>
+        <select id="energy-filter" class="glass-input" onchange="app.renderEnergyDashboard()">
+          <option value="daily">Today</option>
+          <option value="weekly">This Week</option>
+          <option value="monthly">This Month</option>
+          <option value="yearly">This Year</option>
+        </select>
+      </div>
+
+      <div class="month-stats-grid" style="margin-bottom: 20px;">
+        <div class="month-stat-card glass" style="padding: 20px;">
+          <i data-lucide="utensils" style="color:var(--orange)"></i>
+          <span id="energy-intake">0</span>
+          <label>Calories Intake</label>
+        </div>
+        <div class="month-stat-card glass" style="padding: 20px;">
+          <i data-lucide="flame" style="color:var(--danger)"></i>
+          <span id="energy-burnt">0</span>
+          <label>Calories Burnt</label>
+        </div>
+      </div>
+
+      <div class="settings-group glass" style="text-align: center;">
+        <h3>Net Energy</h3>
+        <div style="font-size: 2.5rem; font-weight: 900; color: var(--accent); margin-top: 10px;" id="energy-net">0 kcal</div>
+        <p style="color: var(--muted); font-size: 0.8rem; margin-top: 10px;">Calories Intake - Calories Burnt</p>
       </div>
     </main>
 
@@ -438,6 +510,9 @@
       </button>
       <button id="nav-monthly" class="nav-item" onclick="app.switchTab('monthly')">
         <i data-lucide="calendar-days"></i><span>Monthly</span>
+      </button>
+      <button id="nav-energy" class="nav-item" onclick="app.switchTab('energy')">
+        <i data-lucide="zap"></i><span>Energy</span>
       </button>
       <button id="nav-settings" class="nav-item" onclick="app.switchTab('settings')">
         <i data-lucide="settings-2"></i><span>Settings</span>

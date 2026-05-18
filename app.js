@@ -28,6 +28,7 @@ const app = {
     calendarDate: new Date(),
     history: {},
     targets: { meditation:20, water:8, exercise:30, steps:10000, sleep:7, calories:2000, focus:25 },
+    profile: JSON.parse(localStorage.getItem('tw_profile') || 'null'),
     theme: localStorage.getItem('tw_theme') || 'default'
   },
 
@@ -38,6 +39,8 @@ const app = {
     // Onboarding Check
     if (!localStorage.getItem('tw_username')) {
       document.getElementById('onboarding').classList.remove('hidden');
+    } else if (!this.state.profile) {
+      document.getElementById('profile-upgrade').classList.remove('hidden');
     }
 
     this.ensureDay(this.today());
@@ -85,9 +88,61 @@ const app = {
     if (!name) return;
     localStorage.setItem('tw_username', name);
     document.getElementById('onboarding').classList.add('hidden');
+    
+    // Immediately ask for profile if not set
+    if (!this.state.profile) {
+      document.getElementById('profile-upgrade').classList.remove('hidden');
+    }
+
     this.updateGreeting();
     this.haptic();
     this.toast(`Welcome, ${name}! 🚀`, '🚀');
+  },
+
+  saveProfileUpgrade() {
+    const age = parseInt(document.getElementById('upg-age').value);
+    const height = parseInt(document.getElementById('upg-height').value);
+    const weight = parseInt(document.getElementById('upg-weight').value);
+    const gender = document.getElementById('upg-gender').value;
+    const goal = document.getElementById('upg-goal').value;
+
+    if(!age || !height || !weight) return this.toast('Please fill all fields', '⚠️');
+
+    // Calculate BMR (Mifflin-St Jeor)
+    let bmr = (10 * weight) + (6.25 * height) - (5 * age);
+    bmr += (gender === 'M') ? 5 : -161;
+    
+    // TDEE (Sedentary/Lightly active base)
+    let tdee = bmr * 1.3;
+    
+    let targetCals = tdee;
+    if(goal === 'fatloss') targetCals -= 200;
+    else if(goal === 'muscle') targetCals += 200;
+    
+    targetCals = Math.max(1200, Math.round(targetCals)); // Safe minimum
+    
+    // Calculate Macros
+    let protein = Math.round(weight * (goal==='muscle'?2.2 : goal==='fatloss'?2.0 : 1.8));
+    let fats = Math.round(weight * 0.9); // 0.9g per kg
+    let remainingCals = targetCals - ((protein * 4) + (fats * 9));
+    let carbs = Math.max(50, Math.round(remainingCals / 4));
+    
+    targetCals = (protein * 4) + (fats * 9) + (carbs * 4); // Exact match
+
+    this.state.profile = { age, gender, height, weight, goal, bmr, tdee, targetMacros: { p: protein, c: carbs, f: fats } };
+    localStorage.setItem('tw_profile', JSON.stringify(this.state.profile));
+    
+    this.state.targets.calories = targetCals;
+    localStorage.setItem('tw_targets', JSON.stringify(this.state.targets));
+    
+    document.getElementById('profile-upgrade').classList.add('hidden');
+    this.toast('Profile updated & targets set! 🎯', '🎯');
+    
+    // Update input fields in settings if they exist
+    const setCals = document.getElementById('set-calories');
+    if (setCals) setCals.value = targetCals;
+    
+    this.updateUI();
   },
 
   loadState() {
@@ -119,6 +174,7 @@ const app = {
     if (d.mood === undefined) d.mood = '😐';
     if (d.journal === undefined) d.journal = '';
     if (!Array.isArray(d.food)) d.food = [];
+    if (!Array.isArray(d.workouts)) d.workouts = [];
     if (d.water === undefined) d.water = 0;
     if (d.steps === undefined) d.steps = 0;
     if (d.meditation === undefined) d.meditation = 0;
@@ -246,16 +302,85 @@ const app = {
     if (fp) {
       if (!d.food || !d.food.length) fp.innerHTML = '<p class="no-data">No meals yet</p>';
       else {
+        const totalP = d.food.reduce((sum, f) => sum + (f.protein || 0), 0);
+        const totalC = d.food.reduce((sum, f) => sum + (f.carbs || 0), 0);
+        const totalF = d.food.reduce((sum, f) => sum + (f.fats || 0), 0);
+
+        const pTarget = this.state.profile ? this.state.profile.targetMacros.p : 0;
+        const cTarget = this.state.profile ? this.state.profile.targetMacros.c : 0;
+        const fTarget = this.state.profile ? this.state.profile.targetMacros.f : 0;
+
+        const pDisplay = pTarget ? `${totalP}/${pTarget}g` : `${totalP}g`;
+        const cDisplay = cTarget ? `${totalC}/${cTarget}g` : `${totalC}g`;
+        const fDisplay = fTarget ? `${totalF}/${fTarget}g` : `${totalF}g`;
+
         const listHtml = d.food.map(f => `
-          <div class="food-item-mini">
-            <span>${f.type}</span>
-            <strong style="color:var(--orange)">${f.cals || 0} kcal</strong>
+          <div style="background:rgba(255,255,255,0.03); border-radius:8px; padding:10px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <span style="font-weight:600; font-size:0.85rem; color:var(--text);">${f.type}</span>
+              <strong style="color:var(--orange); font-size:0.85rem;">${f.cals || 0} kcal</strong>
+            </div>
+            <div style="font-size:0.75rem; color:var(--muted); margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${f.desc}</div>
+            <div style="display:flex; justify-content:space-between; gap:6px; font-size:0.65rem; font-weight:700;">
+              <span style="color:#38bdf8; background:rgba(56,189,248,0.1); padding:3px 6px; border-radius:4px; flex:1; text-align:center;">P: ${f.protein||0}g</span>
+              <span style="color:#fbbf24; background:rgba(251,191,36,0.1); padding:3px 6px; border-radius:4px; flex:1; text-align:center;">C: ${f.carbs||0}g</span>
+              <span style="color:#f87171; background:rgba(248,113,113,0.1); padding:3px 6px; border-radius:4px; flex:1; text-align:center;">F: ${f.fats||0}g</span>
+            </div>
           </div>`).join('');
         
         fp.innerHTML = listHtml + `
-          <div class="food-item-mini" style="border-top:1px solid var(--border); margin-top:8px; padding-top:8px; opacity:0.8;">
-            <span style="font-weight:700;">Daily Total</span>
-            <strong style="color:var(--orange); font-weight:800;">${mealCals} kcal</strong>
+          <div style="margin-top:12px; padding-top:12px; border-top:1px dashed rgba(255,255,255,0.1); display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+              <span style="font-weight:800; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; color:var(--muted);">Total</span>
+              <div style="text-align:right;">
+                <strong style="color:var(--orange); font-size:1.2rem; font-weight:900;">${mealCals}</strong>
+                <span style="color:var(--orange); opacity:0.8; font-size:0.85rem; font-weight:600;">/ ${t.calories} kcal</span>
+              </div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; text-align:center;">
+              <div style="background:rgba(56,189,248,0.1); padding:6px; border-radius:8px; display:flex; flex-direction:column; align-items:center;">
+                <span style="color:#38bdf8; font-size:0.6rem; font-weight:800; margin-bottom:2px;">PRO</span>
+                <span style="color:var(--text); font-size:0.75rem; font-weight:700;">${pDisplay}</span>
+              </div>
+              <div style="background:rgba(251,191,36,0.1); padding:6px; border-radius:8px; display:flex; flex-direction:column; align-items:center;">
+                <span style="color:#fbbf24; font-size:0.6rem; font-weight:800; margin-bottom:2px;">CARB</span>
+                <span style="color:var(--text); font-size:0.75rem; font-weight:700;">${cDisplay}</span>
+              </div>
+              <div style="background:rgba(248,113,113,0.1); padding:6px; border-radius:8px; display:flex; flex-direction:column; align-items:center;">
+                <span style="color:#f87171; font-size:0.6rem; font-weight:800; margin-bottom:2px;">FAT</span>
+                <span style="color:var(--text); font-size:0.75rem; font-weight:700;">${fDisplay}</span>
+              </div>
+            </div>
+          </div>`;
+      }
+    }
+
+    // Exercise preview
+    const ep = document.getElementById('exercise-preview');
+    if (ep) {
+      if (!d.workouts || !d.workouts.length) ep.innerHTML = '<p class="no-data">No workouts yet</p>';
+      else {
+        const totalMins = d.workouts.reduce((sum, w) => sum + (w.mins || 0), 0);
+        const totalCals = d.workouts.reduce((sum, w) => sum + (w.cals || 0), 0);
+        
+        const listHtml = d.workouts.map(w => `
+          <div style="background:rgba(255,255,255,0.03); border-radius:8px; padding:10px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:600; font-size:0.85rem; color:var(--text);">${w.type}</span>
+              <strong style="color:#3ecf8e; font-size:0.85rem;">${w.mins} min</strong>
+            </div>
+            <div style="font-size:0.7rem; color:var(--muted); margin-top:4px;">🔥 ${Math.round(w.cals)} kcal burnt</div>
+          </div>`).join('');
+        
+        ep.innerHTML = listHtml + `
+          <div style="margin-top:12px; padding-top:12px; border-top:1px dashed rgba(255,255,255,0.1); display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:800; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:var(--muted);">Total Time</span>
+              <strong style="color:#3ecf8e; font-size:1.1rem; font-weight:900;">${totalMins} min</strong>
+            </div>
+            <div style="font-size:0.75rem; color:var(--orange); text-align:right; font-weight:700;">
+              🔥 ${Math.round(totalCals)} kcal burnt
+            </div>
           </div>`;
       }
     }
@@ -467,6 +592,7 @@ const app = {
       return;
     }
 
+    const profileInfo = this.state.profile ? `User Profile: Age ${this.state.profile.age}, Gender ${this.state.profile.gender}, Goal: ${this.state.profile.goal}, TDEE: ${Math.round(this.state.profile.tdee)}.` : '';
     const dataSummary = history.map(d => {
       const meals = (d.food || []).map(f => `${f.type}:${f.desc}(${f.cals}cals)`).join(', ');
       return `Sleep:${d.sleep}h, Water:${d.water}/8, Exercise:${d.exercise}m, Mood:${d.mood}, Meals:[${meals}]`;
@@ -481,7 +607,7 @@ const app = {
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
           messages: [
-            { role: "system", content: "You are a sharp, motivating personal coach and nutritionist. Analyze the user's habit and meal patterns (specifically looking at Indian/South Indian foods if present). Give exactly ONE powerful insight or suggestion. Max 2-3 sentences. No markdown." },
+            { role: "system", content: `You are a sharp, motivating personal coach and nutritionist. Analyze the user's habit and meal patterns. ${profileInfo} Give exactly ONE powerful insight or suggestion. Max 2-3 sentences. No markdown.` },
             { role: "user", content: `History: ${dataSummary}` }
           ],
           temperature: 0.7, max_tokens: 150
@@ -525,11 +651,24 @@ const app = {
     const k = this.dateKey(this.state.viewDate);
     const d = this.state.history[k];
     const totalCals = d.food.reduce((sum, f) => sum + (f.cals || 0), 0);
+    const totalP = d.food.reduce((sum, f) => sum + (f.protein || 0), 0);
+    const totalC = d.food.reduce((sum, f) => sum + (f.carbs || 0), 0);
+    const totalF = d.food.reduce((sum, f) => sum + (f.fats || 0), 0);
+
+    const pTarget = this.state.profile ? this.state.profile.targetMacros.p : 0;
+    const cTarget = this.state.profile ? this.state.profile.targetMacros.c : 0;
+    const fTarget = this.state.profile ? this.state.profile.targetMacros.f : 0;
+    
+    const pDisplay = pTarget ? `${totalP}/${pTarget}g` : `${totalP}g`;
+    const cDisplay = cTarget ? `${totalC}/${cTarget}g` : `${totalC}g`;
+    const fDisplay = fTarget ? `${totalF}/${fTarget}g` : `${totalF}g`;
+
     const renderMeals = () => `
       <div style="background:rgba(249,115,22,0.08); border:1px solid rgba(249,115,22,0.15); border-radius:16px; padding:18px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
         <div>
            <small style="color:var(--muted); text-transform:uppercase; letter-spacing:1px; font-weight:700; font-size:0.65rem;">Daily Total</small>
            <div style="font-size:1.8rem; font-weight:900; color:var(--orange); line-height:1.1;">${totalCals} <span style="font-size:0.9rem; font-weight:500;">kcal</span></div>
+           <div style="font-size:0.8rem; color:var(--muted); margin-top:4px;">P: ${pDisplay} | C: ${cDisplay} | F: ${fDisplay}</div>
         </div>
         <div style="text-align:right;">
            <small style="color:var(--muted); font-size:0.65rem; text-transform:uppercase; font-weight:700;">Items</small>
@@ -561,6 +700,7 @@ const app = {
               <strong style="color:var(--text); font-size:0.95rem;">${f.type}</strong>
             </div>
             <div style="color:var(--muted); font-size:0.85rem; line-height:1.4;">${f.desc}</div>
+            <div style="font-size:0.75rem; color:var(--accent); margin-top:4px;">P: ${f.protein||0}g • C: ${f.carbs||0}g • F: ${f.fats||0}g</div>
           </div>
           <div style="display:flex; align-items:center; gap:12px;">
             <div style="text-align:right;">
@@ -579,21 +719,24 @@ const app = {
     const type = document.getElementById('meal-type').value;
     const desc = document.getElementById('meal-desc').value.trim() || 'Logged';
     
-    const meal = { type, desc, cals: 0, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
+    const meal = { type, desc, cals: 0, protein: 0, carbs: 0, fats: 0, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
     this.state.history[k].food.push(meal);
     
     this.save(); this.updateUI(); this.openMealTracker(); this.haptic();
     
-    // AI Calorie Estimation
+    // AI Nutrition Estimation
     const statusEl = document.getElementById('ai-status');
     if (statusEl) statusEl.style.display = 'block';
     
-    const cals = await this.aiEstimateCalories(desc);
-    meal.cals = cals;
+    const nutrition = await this.aiEstimateNutrition(desc);
+    meal.cals = nutrition.cals;
+    meal.protein = nutrition.protein;
+    meal.carbs = nutrition.carbs;
+    meal.fats = nutrition.fats;
     
     this.save(); this.updateUI(); this.openMealTracker();
   },
-  async aiEstimateCalories(text) {
+  async aiEstimateNutrition(text) {
     const API_TOKEN = "gsk_Ps7AouVDgKZK5FVx" + "pOpbWGdyb3FYid9galuidjPyIOEUqTqe8IhI";
     try {
       const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -601,20 +744,96 @@ const app = {
         headers: { "Authorization": `Bearer ${API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
-          messages: [{role: "user", content: `You are an expert Indian nutritionist. Estimate total calories for: "${text}". Consider South Indian foods accurately (idly ~80cal each, sambar ~50cal, curd rice ~350cal, mixture ~200cal per serving, etc). Output a SINGLE integer number only, nothing else.`}],
-          temperature: 0.1, max_tokens: 10
+          messages: [
+            {role: "system", content: "You are an expert, highly accurate nutritionist. You must provide realistic and scientifically accurate nutritional estimates for the given food items. Base your estimates on standard USDA/NIN data. Output MUST be ONLY a valid JSON object with keys 'cals', 'protein', 'carbs', 'fats' containing integer values in grams/kcals. No text, no markdown. Be precise, NO false information."},
+            {role: "user", content: `Estimate nutrition for exactly this meal: "${text}".`}
+          ],
+          temperature: 0.0, max_tokens: 60
         })
       }).then(r => r.json());
-      // Extract the largest number (calorie total always > item count)
-      const nums = (resp.choices[0].message.content.match(/\d+/g) || []).map(Number);
-      const c = nums.length ? Math.max(...nums) : 0;
-      return isNaN(c) ? 0 : c;
-    } catch(e) { return 0; }
+      
+      const content = resp.choices[0].message.content;
+      const match = content.match(/\{[\s\S]*\}/);
+      if (match) {
+        const data = JSON.parse(match[0]);
+        return { cals: parseInt(data.cals) || 0, protein: parseInt(data.protein) || 0, carbs: parseInt(data.carbs) || 0, fats: parseInt(data.fats) || 0 };
+      }
+      return { cals: 0, protein: 0, carbs: 0, fats: 0 };
+    } catch(e) { return { cals: 0, protein: 0, carbs: 0, fats: 0 }; }
   },
   deleteMeal(i) {
     const k = this.dateKey(this.state.viewDate);
     this.state.history[k].food.splice(i, 1);
     this.save(); this.updateUI(); this.openMealTracker(); this.haptic();
+  },
+
+  openExerciseTracker() {
+    const k = this.dateKey(this.state.viewDate);
+    const d = this.state.history[k];
+    const totalMins = (d.workouts || []).reduce((sum, w) => sum + (w.mins || 0), 0);
+    const totalCals = (d.workouts || []).reduce((sum, w) => sum + (w.cals || 0), 0);
+    
+    const renderWorkouts = () => `
+      <div style="background:rgba(62,207,142,0.08); border:1px solid rgba(62,207,142,0.15); border-radius:16px; padding:18px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+           <small style="color:var(--muted); text-transform:uppercase; letter-spacing:1px; font-weight:700; font-size:0.65rem;">Daily Total</small>
+           <div style="font-size:1.8rem; font-weight:900; color:var(--accent); line-height:1.1;">${totalMins} <span style="font-size:0.9rem; font-weight:500;">min</span></div>
+           <div style="font-size:0.8rem; color:var(--muted); margin-top:4px;">🔥 ${Math.round(totalCals)} kcal burnt</div>
+        </div>
+      </div>
+
+      <div class="meal-input-group">
+        <select id="workout-type" class="glass-input" style="flex:1">
+          <option value="Walking|4">🚶 Walking</option>
+          <option value="Running|10">🏃 Running</option>
+          <option value="Yoga|3">🧘 Yoga</option>
+          <option value="Weightlifting|5">🏋️ Weightlifting</option>
+          <option value="HIIT|12">🔥 HIIT</option>
+          <option value="Cycling|7">🚴 Cycling</option>
+          <option value="Swimming|8">🏊 Swimming</option>
+          <option value="Sport|6">⚽ Sport / Other</option>
+        </select>
+        <div style="display:flex; align-items:center; gap:8px; flex:1;">
+          <input type="number" id="workout-mins" class="glass-input" placeholder="Min" style="width:100%" min="1">
+          <button class="action-btn primary" onclick="app.addWorkout()">Add</button>
+        </div>
+      </div>
+
+      <p style="font-weight:700; color:var(--muted); font-size:0.75rem; text-transform:uppercase; margin:15px 0 10px; letter-spacing:1px;">Activity Log</p>
+      
+      <div class="meal-list">${(d.workouts||[]).map((w,i) => `
+        <div style="background:rgba(255,255,255,0.03); border-radius:8px; padding:10px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:600; font-size:0.85rem; color:var(--text);">${w.type}</div>
+            <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;">${w.mins} mins • 🔥 ${Math.round(w.cals)} kcal</div>
+          </div>
+          <button class="del-btn" style="background:rgba(248,113,113,0.1); color:var(--danger); width:32px; height:32px; border-radius:8px;" onclick="app.deleteWorkout(${i})"><i data-lucide="trash-2" style="width:16px;"></i></button>
+        </div>`).join('')}
+      </div>`;
+    this.openModal('Log Exercise', renderWorkouts());
+    lucide.createIcons();
+  },
+  addWorkout() {
+    const k = this.dateKey(this.state.viewDate);
+    const typeVal = document.getElementById('workout-type').value;
+    const [type, met] = typeVal.split('|');
+    const mins = parseInt(document.getElementById('workout-mins').value) || 0;
+    if(mins <= 0) return;
+    
+    const cals = mins * parseFloat(met);
+    const workout = { type, mins, cals };
+    
+    if(!this.state.history[k].workouts) this.state.history[k].workouts = [];
+    this.state.history[k].workouts.push(workout);
+    this.state.history[k].exercise = this.state.history[k].workouts.reduce((sum, w) => sum + (w.mins || 0), 0);
+    
+    this.save(); this.updateUI(); this.openExerciseTracker(); this.haptic();
+  },
+  deleteWorkout(i) {
+    const k = this.dateKey(this.state.viewDate);
+    this.state.history[k].workouts.splice(i, 1);
+    this.state.history[k].exercise = this.state.history[k].workouts.reduce((sum, w) => sum + (w.mins || 0), 0);
+    this.save(); this.updateUI(); this.openExerciseTracker(); this.haptic();
   },
 
   openJournal() {
@@ -940,14 +1159,58 @@ const app = {
     t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'), 2500);
   },
   switchTab(t) {
-    ['dashboard','monthly','settings'].forEach(v => {
+    ['dashboard','monthly','energy','settings'].forEach(v => {
       document.getElementById(`view-${v}`).classList.add('hidden');
       document.getElementById(`nav-${v}`).classList.remove('active');
     });
     document.getElementById(`view-${t}`).classList.remove('hidden');
     document.getElementById(`nav-${t}`).classList.add('active');
     if (t === 'monthly') this.renderCalendar();
+    if (t === 'energy') this.renderEnergyDashboard();
     this.haptic();
+  },
+  
+  renderEnergyDashboard() {
+    const filter = document.getElementById('energy-filter').value || 'daily';
+    const now = new Date();
+    let intake = 0;
+    let burnt = 0;
+
+    for (let k in this.state.history) {
+      const d = new Date(k);
+      let include = false;
+      
+      if (filter === 'daily') {
+        include = k === this.today();
+      } else if (filter === 'weekly') {
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        include = d >= startOfWeek && d <= now;
+      } else if (filter === 'monthly') {
+        include = d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      } else if (filter === 'yearly') {
+        include = d.getFullYear() === now.getFullYear();
+      }
+
+      if (include) {
+        const day = this.state.history[k];
+        const dayIntake = (day.food || []).reduce((sum, f) => sum + (f.cals || 0), 0);
+        const dayBurnt = (day.workouts || []).reduce((sum, w) => sum + (w.cals || 0), 0) + (day.steps || 0) * 0.04;
+        
+        intake += dayIntake;
+        burnt += dayBurnt;
+      }
+    }
+
+    this.setText('energy-intake', Math.round(intake));
+    this.setText('energy-burnt', Math.round(burnt));
+    
+    const net = Math.round(intake - burnt);
+    const netEl = document.getElementById('energy-net');
+    if (netEl) {
+      netEl.textContent = `${net > 0 ? '+' : ''}${net} kcal`;
+      netEl.style.color = net >= 0 ? 'var(--orange)' : 'var(--danger)';
+    }
   },
   setupListeners() {
     let startX = 0;
