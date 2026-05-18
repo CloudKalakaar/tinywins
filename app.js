@@ -310,9 +310,9 @@ const app = {
         const cTarget = this.state.profile ? this.state.profile.targetMacros.c : 0;
         const fTarget = this.state.profile ? this.state.profile.targetMacros.f : 0;
 
-        const pDisplay = pTarget ? `${totalP}/${pTarget}g` : `${totalP}g`;
-        const cDisplay = cTarget ? `${totalC}/${cTarget}g` : `${totalC}g`;
-        const fDisplay = fTarget ? `${totalF}/${fTarget}g` : `${totalF}g`;
+        const pDisplay = pTarget ? `<span style="font-size:0.85rem;">${totalP}g</span><span style="font-size:0.6rem; opacity:0.6; margin-top:1px;">/${pTarget}g</span>` : `<span style="font-size:0.85rem;">${totalP}g</span>`;
+        const cDisplay = cTarget ? `<span style="font-size:0.85rem;">${totalC}g</span><span style="font-size:0.6rem; opacity:0.6; margin-top:1px;">/${cTarget}g</span>` : `<span style="font-size:0.85rem;">${totalC}g</span>`;
+        const fDisplay = fTarget ? `<span style="font-size:0.85rem;">${totalF}g</span><span style="font-size:0.6rem; opacity:0.6; margin-top:1px;">/${fTarget}g</span>` : `<span style="font-size:0.85rem;">${totalF}g</span>`;
 
         const listHtml = d.food.map(f => `
           <div style="background:rgba(255,255,255,0.03); border-radius:8px; padding:10px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.05);">
@@ -330,25 +330,28 @@ const app = {
         
         fp.innerHTML = listHtml + `
           <div style="margin-top:12px; padding-top:12px; border-top:1px dashed rgba(255,255,255,0.1); display:flex; flex-direction:column; gap:12px;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
               <span style="font-weight:800; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; color:var(--muted);">Total</span>
-              <div style="text-align:right;">
-                <strong style="color:var(--orange); font-size:1.2rem; font-weight:900;">${mealCals}</strong>
-                <span style="color:var(--orange); opacity:0.8; font-size:0.85rem; font-weight:600;">/ ${t.calories} kcal</span>
+              <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end;">
+                <div style="color:var(--orange); line-height:1;">
+                  <strong style="font-size:1.1rem; font-weight:900;">${mealCals}</strong>
+                  <span style="font-size:0.8rem; opacity:0.8; font-weight:600;">/ ${t.calories}</span>
+                </div>
+                <small style="color:var(--orange); opacity:0.8; font-size:0.55rem; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-top:3px;">kcal</small>
               </div>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; text-align:center;">
-              <div style="background:rgba(56,189,248,0.1); padding:6px; border-radius:8px; display:flex; flex-direction:column; align-items:center;">
-                <span style="color:#38bdf8; font-size:0.6rem; font-weight:800; margin-bottom:2px;">PRO</span>
-                <span style="color:var(--text); font-size:0.75rem; font-weight:700;">${pDisplay}</span>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; text-align:center;">
+              <div style="background:rgba(56,189,248,0.1); padding:6px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center;">
+                <span style="color:#38bdf8; font-size:0.55rem; font-weight:800; margin-bottom:4px;">PRO</span>
+                <span style="color:var(--text); font-weight:800; display:flex; flex-direction:column; align-items:center; line-height:1;">${pDisplay}</span>
               </div>
-              <div style="background:rgba(251,191,36,0.1); padding:6px; border-radius:8px; display:flex; flex-direction:column; align-items:center;">
-                <span style="color:#fbbf24; font-size:0.6rem; font-weight:800; margin-bottom:2px;">CARB</span>
-                <span style="color:var(--text); font-size:0.75rem; font-weight:700;">${cDisplay}</span>
+              <div style="background:rgba(251,191,36,0.1); padding:6px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center;">
+                <span style="color:#fbbf24; font-size:0.55rem; font-weight:800; margin-bottom:4px;">CARB</span>
+                <span style="color:var(--text); font-weight:800; display:flex; flex-direction:column; align-items:center; line-height:1;">${cDisplay}</span>
               </div>
-              <div style="background:rgba(248,113,113,0.1); padding:6px; border-radius:8px; display:flex; flex-direction:column; align-items:center;">
-                <span style="color:#f87171; font-size:0.6rem; font-weight:800; margin-bottom:2px;">FAT</span>
-                <span style="color:var(--text); font-size:0.75rem; font-weight:700;">${fDisplay}</span>
+              <div style="background:rgba(248,113,113,0.1); padding:6px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center;">
+                <span style="color:#f87171; font-size:0.55rem; font-weight:800; margin-bottom:4px;">FAT</span>
+                <span style="color:var(--text); font-weight:800; display:flex; flex-direction:column; align-items:center; line-height:1;">${fDisplay}</span>
               </div>
             </div>
           </div>`;
@@ -659,16 +662,20 @@ const app = {
     const cTarget = this.state.profile ? this.state.profile.targetMacros.c : 0;
     const fTarget = this.state.profile ? this.state.profile.targetMacros.f : 0;
     
-    const pDisplay = pTarget ? `${totalP}/${pTarget}g` : `${totalP}g`;
-    const cDisplay = cTarget ? `${totalC}/${cTarget}g` : `${totalC}g`;
-    const fDisplay = fTarget ? `${totalF}/${fTarget}g` : `${totalF}g`;
+    const pDisplayModal = pTarget ? `<span style="color:var(--text);">${totalP}</span><span style="font-size:0.65rem; opacity:0.6;">/${pTarget}g</span>` : `<span style="color:var(--text);">${totalP}g</span>`;
+    const cDisplayModal = cTarget ? `<span style="color:var(--text);">${totalC}</span><span style="font-size:0.65rem; opacity:0.6;">/${cTarget}g</span>` : `<span style="color:var(--text);">${totalC}g</span>`;
+    const fDisplayModal = fTarget ? `<span style="color:var(--text);">${totalF}</span><span style="font-size:0.65rem; opacity:0.6;">/${fTarget}g</span>` : `<span style="color:var(--text);">${totalF}g</span>`;
 
     const renderMeals = () => `
-      <div style="background:rgba(249,115,22,0.08); border:1px solid rgba(249,115,22,0.15); border-radius:16px; padding:18px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
-        <div>
+      <div style="background:rgba(249,115,22,0.08); border:1px solid rgba(249,115,22,0.15); border-radius:16px; padding:18px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-start;">
+        <div style="flex:1;">
            <small style="color:var(--muted); text-transform:uppercase; letter-spacing:1px; font-weight:700; font-size:0.65rem;">Daily Total</small>
            <div style="font-size:1.8rem; font-weight:900; color:var(--orange); line-height:1.1;">${totalCals} <span style="font-size:0.9rem; font-weight:500;">kcal</span></div>
-           <div style="font-size:0.8rem; color:var(--muted); margin-top:4px;">P: ${pDisplay} | C: ${cDisplay} | F: ${fDisplay}</div>
+           <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
+             <div style="background:rgba(56,189,248,0.1); padding:4px 6px; border-radius:6px; font-size:0.75rem; font-weight:700;"><span style="color:#38bdf8; font-weight:900; margin-right:4px;">P</span>${pDisplayModal}</div>
+             <div style="background:rgba(251,191,36,0.1); padding:4px 6px; border-radius:6px; font-size:0.75rem; font-weight:700;"><span style="color:#fbbf24; font-weight:900; margin-right:4px;">C</span>${cDisplayModal}</div>
+             <div style="background:rgba(248,113,113,0.1); padding:4px 6px; border-radius:6px; font-size:0.75rem; font-weight:700;"><span style="color:#f87171; font-weight:900; margin-right:4px;">F</span>${fDisplayModal}</div>
+           </div>
         </div>
         <div style="text-align:right;">
            <small style="color:var(--muted); font-size:0.65rem; text-transform:uppercase; font-weight:700;">Items</small>
