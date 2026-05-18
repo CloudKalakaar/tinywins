@@ -321,10 +321,10 @@ const app = {
               <strong style="color:var(--orange); font-size:0.85rem;">${f.cals || 0} kcal</strong>
             </div>
             <div style="font-size:0.75rem; color:var(--muted); margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${f.desc}</div>
-            <div style="display:flex; justify-content:space-between; gap:6px; font-size:0.65rem; font-weight:700;">
-              <span style="color:#38bdf8; background:rgba(56,189,248,0.1); padding:3px 6px; border-radius:4px; flex:1; text-align:center;">P: ${f.protein||0}g</span>
-              <span style="color:#fbbf24; background:rgba(251,191,36,0.1); padding:3px 6px; border-radius:4px; flex:1; text-align:center;">C: ${f.carbs||0}g</span>
-              <span style="color:#f87171; background:rgba(248,113,113,0.1); padding:3px 6px; border-radius:4px; flex:1; text-align:center;">F: ${f.fats||0}g</span>
+            <div style="display:flex; justify-content:space-between; gap:4px; font-size:0.65rem; font-weight:700;">
+              <span style="color:#38bdf8; background:rgba(56,189,248,0.1); padding:3px 4px; border-radius:4px; flex:1; text-align:center; min-width:0;">P: ${f.protein||0}g</span>
+              <span style="color:#fbbf24; background:rgba(251,191,36,0.1); padding:3px 4px; border-radius:4px; flex:1; text-align:center; min-width:0;">C: ${f.carbs||0}g</span>
+              <span style="color:#f87171; background:rgba(248,113,113,0.1); padding:3px 4px; border-radius:4px; flex:1; text-align:center; min-width:0;">F: ${f.fats||0}g</span>
             </div>
           </div>`).join('');
         
@@ -340,18 +340,18 @@ const app = {
                 <small style="color:var(--orange); opacity:0.8; font-size:0.55rem; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-top:3px;">kcal</small>
               </div>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; text-align:center;">
-              <div style="background:rgba(56,189,248,0.1); padding:6px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center;">
+            <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; text-align:center;">
+              <div style="background:rgba(56,189,248,0.1); padding:6px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center; overflow:hidden;">
                 <span style="color:#38bdf8; font-size:0.55rem; font-weight:800; margin-bottom:4px;">PRO</span>
-                <span style="color:var(--text); font-weight:800; display:flex; flex-direction:column; align-items:center; line-height:1;">${pDisplay}</span>
+                <span style="color:var(--text); font-weight:800; display:flex; flex-direction:column; align-items:center; line-height:1; word-break:break-all;">${pDisplay}</span>
               </div>
-              <div style="background:rgba(251,191,36,0.1); padding:6px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center;">
+              <div style="background:rgba(251,191,36,0.1); padding:6px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center; overflow:hidden;">
                 <span style="color:#fbbf24; font-size:0.55rem; font-weight:800; margin-bottom:4px;">CARB</span>
-                <span style="color:var(--text); font-weight:800; display:flex; flex-direction:column; align-items:center; line-height:1;">${cDisplay}</span>
+                <span style="color:var(--text); font-weight:800; display:flex; flex-direction:column; align-items:center; line-height:1; word-break:break-all;">${cDisplay}</span>
               </div>
-              <div style="background:rgba(248,113,113,0.1); padding:6px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center;">
+              <div style="background:rgba(248,113,113,0.1); padding:6px 2px; border-radius:8px; display:flex; flex-direction:column; align-items:center; overflow:hidden;">
                 <span style="color:#f87171; font-size:0.55rem; font-weight:800; margin-bottom:4px;">FAT</span>
-                <span style="color:var(--text); font-weight:800; display:flex; flex-direction:column; align-items:center; line-height:1;">${fDisplay}</span>
+                <span style="color:var(--text); font-weight:800; display:flex; flex-direction:column; align-items:center; line-height:1; word-break:break-all;">${fDisplay}</span>
               </div>
             </div>
           </div>`;
@@ -369,8 +369,8 @@ const app = {
         const listHtml = d.workouts.map(w => `
           <div style="background:rgba(255,255,255,0.03); border-radius:8px; padding:10px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.05);">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-weight:600; font-size:0.85rem; color:var(--text);">${w.type}</span>
-              <strong style="color:#3ecf8e; font-size:0.85rem;">${w.mins} min</strong>
+              <span style="font-weight:600; font-size:0.85rem; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:8px;">${w.type}</span>
+              <strong style="color:#3ecf8e; font-size:0.85rem; white-space:nowrap; flex-shrink:0;">${w.mins} min</strong>
             </div>
             <div style="font-size:0.7rem; color:var(--muted); margin-top:4px;">🔥 ${Math.round(w.cals)} kcal burnt</div>
           </div>`).join('');
@@ -378,7 +378,7 @@ const app = {
         ep.innerHTML = listHtml + `
           <div style="margin-top:12px; padding-top:12px; border-top:1px dashed rgba(255,255,255,0.1); display:flex; flex-direction:column; gap:4px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-weight:800; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:var(--muted);">Total Time</span>
+              <span style="font-weight:800; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:var(--muted);">Total</span>
               <strong style="color:#3ecf8e; font-size:1.1rem; font-weight:900;">${totalMins} min</strong>
             </div>
             <div style="font-size:0.75rem; color:var(--orange); text-align:right; font-weight:700;">
