@@ -321,10 +321,10 @@ const app = {
               <strong style="color:var(--orange); font-size:0.85rem;">${f.cals || 0} kcal</strong>
             </div>
             <div style="font-size:0.75rem; color:var(--muted); margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${f.desc}</div>
-            <div style="display:flex; justify-content:space-between; gap:4px; font-size:0.65rem; font-weight:700;">
-              <span style="color:#38bdf8; background:rgba(56,189,248,0.1); padding:3px 4px; border-radius:4px; flex:1; text-align:center; min-width:0;">P: ${f.protein||0}g</span>
-              <span style="color:#fbbf24; background:rgba(251,191,36,0.1); padding:3px 4px; border-radius:4px; flex:1; text-align:center; min-width:0;">C: ${f.carbs||0}g</span>
-              <span style="color:#f87171; background:rgba(248,113,113,0.1); padding:3px 4px; border-radius:4px; flex:1; text-align:center; min-width:0;">F: ${f.fats||0}g</span>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; text-align:center; font-size:0.65rem; font-weight:700;">
+              <div style="background:rgba(56,189,248,0.1); border-radius:4px; padding:3px 2px; display:flex; flex-direction:column; gap:1px;"><span style="color:#38bdf8; font-size:0.55rem;">PRO</span><span style="color:var(--text);">${f.protein||0}g</span></div>
+              <div style="background:rgba(251,191,36,0.1); border-radius:4px; padding:3px 2px; display:flex; flex-direction:column; gap:1px;"><span style="color:#fbbf24; font-size:0.55rem;">CARB</span><span style="color:var(--text);">${f.carbs||0}g</span></div>
+              <div style="background:rgba(248,113,113,0.1); border-radius:4px; padding:3px 2px; display:flex; flex-direction:column; gap:1px;"><span style="color:#f87171; font-size:0.55rem;">FAT</span><span style="color:var(--text);">${f.fats||0}g</span></div>
             </div>
           </div>`).join('');
         
