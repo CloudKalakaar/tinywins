@@ -595,10 +595,14 @@ const app = {
       return;
     }
 
+    const targets = this.state.targets;
     const profileInfo = this.state.profile ? `User Profile: Age ${this.state.profile.age}, Gender ${this.state.profile.gender}, Goal: ${this.state.profile.goal}, TDEE: ${Math.round(this.state.profile.tdee)}.` : '';
     const dataSummary = history.map(d => {
-      const meals = (d.food || []).map(f => `${f.type}:${f.desc}(${f.cals}cals)`).join(', ');
-      return `Sleep:${d.sleep}h, Water:${d.water}/8, Exercise:${d.exercise}m, Mood:${d.mood}, Meals:[${meals}]`;
+      const meals = (d.food || []).map(f => `${f.type}:${f.desc}(${f.cals}cals, P:${f.protein}g, C:${f.carbs}g, F:${f.fats}g)`).join(', ');
+      const workouts = (d.workouts || []).map(w => `${w.type}(${w.mins}m)`).join(', ');
+      const journalText = d.journal ? `JournalSnippet:"${d.journal.slice(0, 80).replace(/\n/g, ' ')}"` : 'No journal';
+      const hobbiesText = d.hobbies ? `Hobbies:"${d.hobbies}"` : 'No hobbies';
+      return `Score:${d._score}/10, Sleep:${d.sleep}h (Wake:${d.wake || 'N/A'}, Bed:${d.bedtime || 'N/A'}), Water:${d.water}/${targets.water || 8}, Steps:${d.steps}/${targets.steps || 10000}, Exercise:${d.exercise}m (${workouts || 'none'}), Meditation:${d.meditation}m, Focus:${d.focus}m, Mood:${d.mood}, ${hobbiesText}, ${journalText}, Meals:[${meals}]`;
     }).join(' | ');
 
     const API_TOKEN = "gsk_Ps7AouVDgKZK5FVx" + "pOpbWGdyb3FYid9galuidjPyIOEUqTqe8IhI";
@@ -610,7 +614,7 @@ const app = {
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
           messages: [
-            { role: "system", content: `You are a sharp, motivating personal coach and nutritionist. Analyze the user's habit and meal patterns. ${profileInfo} Give exactly ONE powerful insight or suggestion. Max 2-3 sentences. No markdown.` },
+            { role: "system", content: `You are a sharp, motivating personal coach, habit expert, and lifestyle/nutrition guide. Analyze the user's holistic life patterns across sleep, steps, focus, meditation, mood, hobbies, and nutrition. ${profileInfo} Give exactly ONE powerful, personalized insight or coaching recommendation. Max 2-3 sentences. No markdown.` },
             { role: "user", content: `History: ${dataSummary}` }
           ],
           temperature: 0.7, max_tokens: 150
