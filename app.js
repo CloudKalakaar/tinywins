@@ -683,6 +683,14 @@ const app = {
         </div>
       </div>
 
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <button id="meal-time-btn" onclick="app.openMealTimePicker()" style="display:flex; align-items:center; gap:6px; background:rgba(62,207,142,0.1); border:1px solid rgba(62,207,142,0.25); color:var(--accent); padding:8px 12px; border-radius:10px; cursor:pointer; font-size:0.8rem; font-weight:700; flex-shrink:0; white-space:nowrap;">
+          <i data-lucide="clock" style="width:14px; height:14px;"></i>
+          <span id="meal-time-display">${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+        </button>
+        <span style="font-size:0.65rem; color:var(--muted);">Tap to change meal time</span>
+      </div>
+
       <div class="meal-input-group">
         <select id="meal-type" class="glass-input" style="flex:0.8">
           <option>🍳 Breakfast</option>
@@ -726,8 +734,9 @@ const app = {
     const type = document.getElementById('meal-type').value;
     const desc = document.getElementById('meal-desc').value.trim() || 'Logged';
     
-    const meal = { type, desc, cals: 0, protein: 0, carbs: 0, fats: 0, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
+    const meal = { type, desc, cals: 0, protein: 0, carbs: 0, fats: 0, time: this._pendingMealTime || new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
     this.state.history[k].food.push(meal);
+    this._pendingMealTime = null; // reset for next meal
     
     this.save(); this.updateUI(); this.openMealTracker(); this.haptic();
     
@@ -772,6 +781,57 @@ const app = {
     const k = this.dateKey(this.state.viewDate);
     this.state.history[k].food.splice(i, 1);
     this.save(); this.updateUI(); this.openMealTracker(); this.haptic();
+  },
+
+  openMealTimePicker() {
+    // Grab current displayed time or default to now
+    const existing = document.getElementById('meal-time-display')?.textContent || '';
+    let h=new Date().getHours(), m=new Date().getMinutes();
+    let ampm = h >= 12 ? 'PM' : 'AM';
+    h = h > 12 ? h-12 : (h===0 ? 12 : h);
+
+    if (existing && existing.includes(':')) {
+      const parts = existing.split(/[:\s]/);
+      h = parseInt(parts[0]) || h;
+      m = parseInt(parts[1]) || m;
+      ampm = existing.includes('PM') ? 'PM' : existing.includes('AM') ? 'AM' : ampm;
+    }
+
+    const html = `
+      <div class="clock-container">
+        <div class="clock-display">
+          <span id="clk-h" class="active" onclick="app._switchClockMode('hours')">${h}</span>:
+          <span id="clk-m" class="inactive" onclick="app._switchClockMode('mins')">${m.toString().padStart(2,'0')}</span>
+        </div>
+        <div class="clock-face" id="clock-face">
+          <div class="clock-center"></div>
+          <div class="clock-hand" id="clock-hand"></div>
+          <div id="clock-numbers"></div>
+        </div>
+        <div class="ampm-toggle">
+          <button id="ampm-am" class="ampm-btn ${ampm==='AM'?'active':''}" onclick="app._setAMPM('AM')">AM</button>
+          <button id="ampm-pm" class="ampm-btn ${ampm==='PM'?'active':''}" onclick="app._setAMPM('PM')">PM</button>
+        </div>
+        <button class="action-btn primary" style="width:100%" onclick="app._saveMealClockTime()">Set Meal Time</button>
+      </div>`;
+
+    this.openModal('Meal Time', html);
+    this.app_temp_clock = { h, m, ampm, mode: 'hours', id: 'meal' };
+    this._renderClockFace();
+    this.setupClockEvents();
+  },
+  _saveMealClockTime() {
+    const c = this.app_temp_clock;
+    this._pendingMealTime = `${c.h}:${c.m.toString().padStart(2,'0')} ${c.ampm}`;
+    this.closeModal();
+    // Re-open meal tracker to update the displayed time
+    this.openMealTracker();
+    // Restore the chosen time in the display after re-open
+    setTimeout(() => {
+      const btn = document.getElementById('meal-time-display');
+      if (btn) btn.textContent = this._pendingMealTime;
+    }, 50);
+    this.haptic();
   },
 
   openExerciseTracker() {
