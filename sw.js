@@ -2,7 +2,7 @@
 // Strategy: Network-First for app files → always gets latest on deploy
 // Cache-First for external fonts/icons → fast load
 
-const CACHE_VERSION = 'tinywins-2026051806';
+const CACHE_VERSION = 'tinywins-2026051901';
 const CACHE_NAME = `tw-${CACHE_VERSION}`;
 
 const APP_FILES = [

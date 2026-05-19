@@ -7,6 +7,7 @@ const BADGES = [
 ];
 
 const MOODS = [
+  { emoji:'😤', label:'Angry' },
   { emoji:'😴', label:'Tired' },
   { emoji:'😐', label:'Okay' },
   { emoji:'🙂', label:'Good' },
@@ -171,7 +172,7 @@ const app = {
       this.state.history[k] = {};
     }
     const d = this.state.history[k];
-    if (d.mood === undefined) d.mood = '😐';
+    if (d.mood === undefined) d.mood = '🙂';
     if (d.journal === undefined) d.journal = '';
     if (!Array.isArray(d.food)) d.food = [];
     if (!Array.isArray(d.workouts)) d.workouts = [];
