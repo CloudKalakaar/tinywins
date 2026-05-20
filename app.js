@@ -593,7 +593,25 @@ const app = {
     this.openModal('AI Brain 🧠', `<div style="text-align:center; padding:30px;"><i data-lucide="loader-2" class="spin" style="width:40px; height:40px; color:var(--accent);"></i><p style="color:var(--muted); margin-top:16px;">Analyzing your habits...</p></div>`);
     lucide.createIcons();
 
-    const history = Object.values(this.state.history).filter(d => d._score > 0).slice(-7);
+    // Get last 7 calendar days whatever data is available
+    let history = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const k = this.dateKey(d);
+      if (this.state.history[k]) {
+        history.push({ date: k, ...this.state.history[k] });
+      }
+    }
+    // Fallback if calendar days don't have any data
+    if (history.length === 0) {
+      history = Object.keys(this.state.history)
+        .sort()
+        .slice(-7)
+        .map(k => ({ date: k, ...this.state.history[k] }));
+    }
+
     if (history.length === 0) {
       this.openModal('AI Brain 🧠', '<p style="text-align:center; padding:20px;">I\'m ready to help, but you haven\'t logged any habits yet! Log your first tiny win today and I\'ll give you some insights. 🌱</p>');
       return;
@@ -606,7 +624,7 @@ const app = {
       const workouts = (d.workouts || []).map(w => `${w.type}(${w.mins}m)`).join(', ');
       const journalText = d.journal ? `JournalSnippet:"${d.journal.slice(0, 80).replace(/\n/g, ' ')}"` : 'No journal';
       const hobbiesText = d.hobbies ? `Hobbies:"${d.hobbies}"` : 'No hobbies';
-      return `Score:${d._score}/10, Sleep:${d.sleep}h (Wake:${d.wake || 'N/A'}, Bed:${d.bedtime || 'N/A'}), Water:${d.water}/${targets.water || 8}, Steps:${d.steps}/${targets.steps || 10000}, Exercise:${d.exercise}m (${workouts || 'none'}), Meditation:${d.meditation}m, Focus:${d.focus}m, Mood:${d.mood}, ${hobbiesText}, ${journalText}, Meals:[${meals}]`;
+      return `Date:${d.date}, Score:${d._score}/10, Sleep:${d.sleep}h (Wake:${d.wake || 'N/A'}, Bed:${d.bedtime || 'N/A'}), Water:${d.water}/${targets.water || 8}, Steps:${d.steps}/${targets.steps || 10000}, Exercise:${d.exercise}m (${workouts || 'none'}), Meditation:${d.meditation}m, Focus:${d.focus}m, Mood:${d.mood}, ${hobbiesText}, ${journalText}, Meals:[${meals}]`;
     }).join(' | ');
 
     const API_TOKEN = "gsk_Ps7AouVDgKZK5FVx" + "pOpbWGdyb3FYid9galuidjPyIOEUqTqe8IhI";
@@ -617,16 +635,76 @@ const app = {
         headers: { "Authorization": `Bearer ${API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
+          response_format: { type: "json_object" },
           messages: [
-            { role: "system", content: `You are a sharp, motivating personal coach, habit expert, and lifestyle/nutrition guide. Analyze the user's holistic life patterns across sleep, steps, focus, meditation, mood, hobbies, and nutrition. ${profileInfo} Give exactly ONE powerful, personalized insight or coaching recommendation. Max 2-3 sentences. No markdown.` },
-            { role: "user", content: `History: ${dataSummary}` }
+            { role: "system", content: `You are a sharp, motivating personal coach, habit expert, and lifestyle guide. Analyze the user's last 7 days of holistic life patterns.
+Profile Info: ${profileInfo}
+Provide exactly four categories of insights. Each category must be exactly 1-2 sentences of highly specific, personalized feedback referencing their actual data.
+Format your output as a valid JSON object with keys: "fitness" (focusing on their BMR/TDEE deficit or surplus, workouts, and macro targets), "focus" (focus and study time targets), "mindfulness" (sleep habits, bedtime, wake time, meditation, and mood), and "habits" (steps, water intake, and general daily wins). Do not include any extra text.` },
+            { role: "user", content: `Last 7 Days History: ${dataSummary}` }
           ],
-          temperature: 0.7, max_tokens: 150
+          temperature: 0.7, max_tokens: 500
         })
       }).then(r => r.json());
 
-      const insight = resp.choices[0].message.content;
-      this.openModal('AI Brain 🧠', `<div style="padding:20px; line-height:1.6; text-align:center; font-size:1.1rem; color:var(--text); font-weight:600;">"${insight}"</div>`);
+      let data;
+      try {
+        let txt = resp.choices[0].message.content.trim();
+        data = JSON.parse(txt);
+      } catch (err) {
+        const text = resp.choices[0].message.content.trim();
+        data = {
+          fitness: text,
+          focus: "Keep logging focus targets to optimize study schedules.",
+          mindfulness: "Consistent sleep and meditation will improve your daily score.",
+          habits: "Keep crushing your daily step count and water goals."
+        };
+      }
+
+      const html = `
+        <div style="display:flex; flex-direction:column; gap:14px; padding:4px 0;">
+          <div class="glass" style="border:1px solid rgba(249,115,22,0.15); background:rgba(249,115,22,0.03); padding:14px; border-radius:14px; display:flex; gap:10px; align-items:flex-start;">
+            <div style="background:rgba(249,115,22,0.15); color:var(--orange); border-radius:8px; padding:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <i data-lucide="dumbbell" style="width:18px; height:18px;"></i>
+            </div>
+            <div>
+              <h4 style="margin:0 0 4px 0; font-size:0.8rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:var(--orange);">Fitness & Goals</h4>
+              <p style="margin:0; font-size:0.82rem; line-height:1.45; color:var(--text); opacity:0.9;">${data.fitness || 'Keep tracking workouts and meals to analyze.'}</p>
+            </div>
+          </div>
+
+          <div class="glass" style="border:1px solid rgba(56,189,248,0.15); background:rgba(56,189,248,0.03); padding:14px; border-radius:14px; display:flex; gap:10px; align-items:flex-start;">
+            <div style="background:rgba(56,189,248,0.15); color:#38bdf8; border-radius:8px; padding:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <i data-lucide="timer" style="width:18px; height:18px;"></i>
+            </div>
+            <div>
+              <h4 style="margin:0 0 4px 0; font-size:0.8rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#38bdf8;">Focus & Study</h4>
+              <p style="margin:0; font-size:0.82rem; line-height:1.45; color:var(--text); opacity:0.9;">${data.focus || 'Set focus timers to boost daily productivity.'}</p>
+            </div>
+          </div>
+
+          <div class="glass" style="border:1px solid rgba(168,85,247,0.15); background:rgba(168,85,247,0.03); padding:14px; border-radius:14px; display:flex; gap:10px; align-items:flex-start;">
+            <div style="background:rgba(168,85,247,0.15); color:#a855f7; border-radius:8px; padding:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <i data-lucide="brain" style="width:18px; height:18px;"></i>
+            </div>
+            <div>
+              <h4 style="margin:0 0 4px 0; font-size:0.8rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#a855f7;">Mindfulness & Sleep</h4>
+              <p style="margin:0; font-size:0.82rem; line-height:1.45; color:var(--text); opacity:0.9;">${data.mindfulness || 'Optimize sleep durations and bedtime routines.'}</p>
+            </div>
+          </div>
+
+          <div class="glass" style="border:1px solid rgba(62,207,142,0.15); background:rgba(62,207,142,0.03); padding:14px; border-radius:14px; display:flex; gap:10px; align-items:flex-start;">
+            <div style="background:rgba(62,207,142,0.15); color:var(--accent); border-radius:8px; padding:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <i data-lucide="activity" style="width:18px; height:18px;"></i>
+            </div>
+            <div>
+              <h4 style="margin:0 0 4px 0; font-size:0.8rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:var(--accent);">Daily Habits & Energy</h4>
+              <p style="margin:0; font-size:0.82rem; line-height:1.45; color:var(--text); opacity:0.9;">${data.habits || 'Log steps and water to maintain consistent habits.'}</p>
+            </div>
+          </div>
+        </div>
+      `;
+      this.openModal('AI Insights 🧠', html);
     } catch (e) {
       this.openModal('AI Brain 🧠', '<p style="text-align:center; padding:20px;">Brain is a bit foggy. Check back soon!</p>');
     }
