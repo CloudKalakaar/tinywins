@@ -170,6 +170,9 @@
     </div>
 
     <main id="view-dashboard">
+      <!-- Countdown Section -->
+      <div id="countdown-section" class="glass" style="margin-bottom: 20px; transition: all 0.3s ease;"></div>
+
       <section class="progress-section glass">
         <div class="progress-info">
           <p class="progress-label">Daily Score</p>
@@ -435,7 +438,13 @@
         <div class="setting-row"><label>Exercise (min)</label><input type="number" id="set-exercise" value="30" min="1"></div>
         <div class="setting-row"><label>Steps</label><input type="number" id="set-steps" value="10000" min="100"></div>
         <div class="setting-row"><label>Sleep (hrs)</label><input type="number" id="set-sleep" value="7" min="1" max="12"></div>
-        <div class="setting-row"><label>Calories (kcal)</label><input type="number" id="set-calories" value="2000" min="500"></div>
+        <div class="setting-row" style="flex-wrap: wrap; gap: 8px;">
+          <label>Calories (kcal)</label>
+          <div style="display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex: 1; min-width: 160px;">
+            <input type="number" id="set-calories" value="2000" min="500" style="width: 80px;">
+            <button class="action-btn" onclick="app.resetCalorieTarget()" style="font-size: 0.65rem; padding: 6px 10px; background: rgba(62,207,142,0.1); border-color: rgba(62,207,142,0.25); color: var(--accent); white-space: nowrap; height: 32px; border-radius: 8px;">Recalculate</button>
+          </div>
+        </div>
         <div class="setting-row"><label>Focus (min)</label><input type="number" id="set-focus" value="25" min="1"></div>
         <button class="action-btn save-settings-btn" onclick="app.saveSettings()">Save Targets</button>
       </div>

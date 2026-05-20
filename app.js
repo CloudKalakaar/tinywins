@@ -64,6 +64,7 @@ const app = {
     }
     this.initNotifications();
     this.checkAuth();
+    this.startCountdownTimer();
   },
 
   applyUpdate() {
@@ -165,6 +166,7 @@ const app = {
     }
     const t = localStorage.getItem('tw_targets');
     if (t) this.state.targets = { ...this.state.targets, ...JSON.parse(t) };
+    this.state.countdowns = JSON.parse(localStorage.getItem('tw_countdowns') || '[]');
   },
 
   ensureDay(k) {
@@ -411,6 +413,7 @@ const app = {
     const gfs = document.getElementById('gf-status-text');
     if (gfs) gfs.textContent = localStorage.getItem('tw_gf_token') ? 'Connected' : 'Not connected';
 
+    this.updateCountdowns();
     lucide.createIcons();
   },
 
@@ -1881,6 +1884,221 @@ const app = {
         </div>
       </div>`;
     this.openModal(g.title, html);
+  },
+
+  resetCalorieTarget() {
+    if (!this.state.profile) {
+      this.toast('No profile data found! Please calculate targets in the dashboard upgrade prompt first.', '⚠️');
+      return;
+    }
+    const { age, gender, height, weight, goal } = this.state.profile;
+    
+    // Calculate BMR (Mifflin-St Jeor)
+    let bmr = (10 * weight) + (6.25 * height) - (5 * age);
+    bmr += (gender === 'M') ? 5 : -161;
+    
+    // TDEE (Sedentary/Lightly active base)
+    let tdee = bmr * 1.3;
+    
+    let targetCals = tdee;
+    if(goal === 'fatloss') targetCals -= 200;
+    else if(goal === 'muscle') targetCals += 200;
+    
+    targetCals = Math.max(1200, Math.round(targetCals)); // Safe minimum
+    
+    // Recalculate Macros
+    let protein = Math.round(weight * (goal==='muscle'?2.2 : goal==='fatloss'?2.0 : 1.8));
+    let fats = Math.round(weight * 0.9); // 0.9g per kg
+    let remainingCals = targetCals - ((protein * 4) + (fats * 9));
+    let carbs = Math.max(50, Math.round(remainingCals / 4));
+    
+    targetCals = (protein * 4) + (fats * 9) + (carbs * 4); // Exact match
+
+    // Update targets
+    this.state.targets.calories = targetCals;
+    localStorage.setItem('tw_targets', JSON.stringify(this.state.targets));
+
+    // Update profile macros just in case
+    this.state.profile.targetMacros = { p: protein, c: carbs, f: fats };
+    localStorage.setItem('tw_profile', JSON.stringify(this.state.profile));
+
+    // Update input field if exists
+    const setCals = document.getElementById('set-calories');
+    if (setCals) setCals.value = targetCals;
+
+    this.save();
+    this.updateUI();
+    this.toast(`Calorie target reset to profile: ${targetCals} kcal! 🎯`, '🎯');
+    this.haptic();
+  },
+
+  /* ─── COUNTDOWNS ─── */
+  updateCountdowns() {
+    const container = document.getElementById('countdown-section');
+    if (!container) return;
+
+    if (!this.state.countdowns) {
+      this.state.countdowns = [];
+    }
+
+    if (this.state.countdowns.length === 0) {
+      // Set to empty dashed border style
+      container.style.border = '1px dashed rgba(255,255,255,0.15)';
+      container.style.background = 'transparent';
+      container.style.padding = '14px 18px';
+      container.style.cursor = 'pointer';
+      container.onclick = () => this.openCountdownManager();
+      container.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <i data-lucide="alarm-clock" style="width:16px; height:16px; color:var(--muted);"></i>
+            <span style="font-size:0.8rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:1px;">Set a Countdown</span>
+          </div>
+          <i data-lucide="plus" style="width:16px; height:16px; color:var(--muted);"></i>
+        </div>
+      `;
+    } else {
+      // Set to normal glass container style
+      container.style.border = '1px solid var(--border)';
+      container.style.background = 'var(--surface)';
+      container.style.padding = '18px';
+      container.style.cursor = 'default';
+      container.onclick = null;
+      
+      container.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+          <h3 style="font-size:0.85rem; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--muted); display:flex; align-items:center; gap:6px; margin:0;">
+            <i data-lucide="alarm-clock" style="width:16px;height:16px;color:var(--accent);"></i>
+            Countdowns
+          </h3>
+          <button class="action-btn" onclick="app.openCountdownManager()" style="font-size:0.7rem; padding:4px 8px; background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.1); margin:0;">Manage</button>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          ${this.state.countdowns.map((c, idx) => `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); padding:10px 14px; border-radius:12px;">
+              <span style="font-weight:600; font-size:0.85rem; color:var(--text);">${c.name}</span>
+              <span class="countdown-timer" data-target="${c.target}" style="font-family:var(--heading); font-weight:800; font-size:0.9rem; color:var(--accent); letter-spacing:0.5px;">--:--:--</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+    lucide.createIcons();
+  },
+
+  openCountdownManager() {
+    this.haptic();
+    const listHtml = this.state.countdowns.length === 0 
+      ? `<p style="text-align:center; color:var(--muted); margin:15px 0;">No active countdowns. Add one below!</p>` 
+      : `<div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+          ${this.state.countdowns.map((c, i) => `
+            <div style="background:rgba(255,255,255,0.03); border-radius:8px; padding:10px; border:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:600; font-size:0.85rem; color:var(--text);">${c.name}</div>
+                <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;">Target: ${new Date(c.target).toLocaleString([], {dateStyle:'medium', timeStyle:'short'})}</div>
+              </div>
+              <button class="del-btn" style="background:rgba(248,113,113,0.1); color:var(--danger); width:32px; height:32px; border-radius:8px;" onclick="app.deleteCountdown(${i})"><i data-lucide="trash-2" style="width:16px;"></i></button>
+            </div>
+          `).join('')}
+         </div>`;
+
+    const formHtml = `
+      <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:15px; display:flex; flex-direction:column; gap:12px;">
+        <h4 style="margin:0; font-size:0.8rem; font-weight:800; text-transform:uppercase; color:var(--muted); letter-spacing:0.5px;">Add New Event</h4>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <label style="font-size:0.75rem; color:var(--muted); font-weight:600;">Event Name</label>
+          <input type="text" id="cd-name" class="glass-input" placeholder="e.g. Exam, Vacation, Birthday..." style="width:100%;">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:0.75rem; color:var(--muted); font-weight:600;">Date</label>
+            <input type="date" id="cd-date" class="glass-input" style="width:100%;">
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:0.75rem; color:var(--muted); font-weight:600;">Time</label>
+            <input type="time" id="cd-time" class="glass-input" style="width:100%;" value="00:00">
+          </div>
+        </div>
+        <button class="action-btn primary" style="margin-top:8px; width:100%;" onclick="app.addCountdown()">Add Countdown</button>
+      </div>
+    `;
+
+    const html = `<div style="padding:4px 0;">${listHtml} ${formHtml}</div>`;
+    this.openModal('Manage Countdowns', html);
+  },
+
+  addCountdown() {
+    const name = document.getElementById('cd-name').value.trim();
+    const date = document.getElementById('cd-date').value;
+    const time = document.getElementById('cd-time').value;
+
+    if (!name || !date || !time) {
+      this.toast('Please fill all fields', '⚠️');
+      return;
+    }
+
+    const targetIso = `${date}T${time}`;
+    const targetDate = new Date(targetIso);
+    if (isNaN(targetDate.getTime())) {
+      this.toast('Invalid date or time format', '⚠️');
+      return;
+    }
+
+    if (targetDate <= new Date()) {
+      this.toast('Target must be in the future', '⚠️');
+      return;
+    }
+
+    this.state.countdowns.push({ name, target: targetIso });
+    localStorage.setItem('tw_countdowns', JSON.stringify(this.state.countdowns));
+    this.updateCountdowns();
+    this.openCountdownManager();
+    this.toast('Countdown added! ⏳', '⏳');
+    this.haptic();
+  },
+
+  deleteCountdown(i) {
+    this.state.countdowns.splice(i, 1);
+    localStorage.setItem('tw_countdowns', JSON.stringify(this.state.countdowns));
+    this.updateCountdowns();
+    this.openCountdownManager();
+    this.toast('Countdown removed', '🗑️');
+    this.haptic();
+  },
+
+  startCountdownTimer() {
+    if (this._countdownInterval) clearInterval(this._countdownInterval);
+    
+    const updateTimes = () => {
+      const timers = document.querySelectorAll('.countdown-timer');
+      if (timers.length === 0) return;
+      
+      timers.forEach(el => {
+        const targetStr = el.getAttribute('data-target');
+        const targetDate = new Date(targetStr);
+        const now = new Date();
+        const diff = targetDate - now;
+        
+        if (diff <= 0) {
+          el.textContent = "Completed! 🎉";
+          el.style.color = "var(--success)";
+          return;
+        }
+        
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+        
+        let timeString = '';
+        if (days > 0) timeString += `${days}d `;
+        timeString += `${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
+        el.textContent = timeString;
+      });
+    };
+    
+    updateTimes();
+    this._countdownInterval = setInterval(updateTimes, 1000);
   }
 };
 
