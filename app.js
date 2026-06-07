@@ -167,6 +167,7 @@ const app = {
     const t = localStorage.getItem('tw_targets');
     if (t) this.state.targets = { ...this.state.targets, ...JSON.parse(t) };
     this.state.countdowns = JSON.parse(localStorage.getItem('tw_countdowns') || '[]');
+    this.state.challenge = JSON.parse(localStorage.getItem('tw_challenge') || 'null');
   },
 
   ensureDay(k) {
@@ -1312,7 +1313,7 @@ Format your output as a valid JSON object with keys: "fitness" (focusing on thei
     t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'), 2500);
   },
   switchTab(t) {
-    ['dashboard','monthly','energy','settings'].forEach(v => {
+    ['dashboard','monthly','energy','settings','challenge'].forEach(v => {
       document.getElementById(`view-${v}`).classList.add('hidden');
       document.getElementById(`nav-${v}`).classList.remove('active');
     });
@@ -1320,6 +1321,7 @@ Format your output as a valid JSON object with keys: "fitness" (focusing on thei
     document.getElementById(`nav-${t}`).classList.add('active');
     if (t === 'monthly') this.renderCalendar();
     if (t === 'energy') this.renderEnergyDashboard();
+    if (t === 'challenge') this.renderChallenge();
     this.haptic();
   },
   
@@ -2177,6 +2179,438 @@ Format your output as a valid JSON object with keys: "fitness" (focusing on thei
     
     updateTimes();
     this._countdownInterval = setInterval(updateTimes, 1000);
+  },
+
+  /* ══════════════════════════════════════════
+     HARD CHALLENGE
+  ══════════════════════════════════════════ */
+
+  _CHALLENGE_CHECKS: [
+    { id:'no_sugar',      label:'No Sugar',               desc:'Zero added sugar all day',                    badge:'🚫🍬', manual:true  },
+    { id:'no_alcohol',    label:'No Alcohol',              desc:'No alcoholic beverages',                      badge:'🚫🍺', manual:true  },
+    { id:'no_fastfood',   label:'No Fast Food',            desc:'No junk/processed food',                      badge:'🚫🍔', manual:true  },
+    { id:'no_liq_cals',   label:'No Liquid Calories',      desc:'No soda, juice or sweetened drinks',          badge:'🚫🥤', manual:true  },
+    { id:'no_scroll',     label:'No Mindless Scrolling',   desc:'No social media doom-scrolling',              badge:'🚫📱', manual:true  },
+    { id:'no_porn',       label:'No Porn',                 desc:'Keep your mind clean & focused',              badge:'🚫🔞', manual:true  },
+    { id:'wake_b4_6',     label:'Wake Up Before 6 AM',     desc:'Auto-checked if Wake Now ≤ 06:00 AM',         badge:'🌅',   manual:false },
+    { id:'no_phone_bed',  label:'No Phone in Bed',         desc:'30 mins before & after bedtime',              badge:'📵',   manual:true  },
+    { id:'workout_2x',    label:'2x Workouts (30 min+)',   desc:'One must be outdoors; auto if 2 sessions logged ≥30 min each', badge:'🏋️', manual:false },
+    { id:'steps_10k',     label:'10,000 Steps',            desc:'Auto-checked from your step counter',         badge:'👣',   manual:false },
+    { id:'water_3l',      label:'3 Liters of Water',       desc:'Auto-checked when ≥ 12 glasses logged',       badge:'💧',   manual:false },
+    { id:'cold_shower',   label:'Cold Shower',             desc:'At least one cold shower today',              badge:'🚿',   manual:true  },
+    { id:'sleep_78',      label:'7-8 Hours Sleep',         desc:'Auto-checked from your sleep tracker',        badge:'😴',   manual:false },
+    { id:'reading_10',    label:'10 Pages of Reading',     desc:'Any book counts — fiction, non-fiction, growth', badge:'📖', manual:true  },
+    { id:'pos_thinking',  label:'Only Positive Thinking',  desc:'Caught yourself being negative? Mark failed',  badge:'🧠',   manual:true  },
+  ],
+
+  _saveChallenge() {
+    localStorage.setItem('tw_challenge', JSON.stringify(this.state.challenge));
+  },
+
+  _challengeAutoChecks(dayKey) {
+    /* Returns an object of check ids that can be auto-determined from app state */
+    const day = this.state.history[dayKey] || {};
+    const auto = {};
+
+    // wake_b4_6: wake time must have been set via "Now" button before 06:00
+    if (day.wake) {
+      const [timePart, ampm] = day.wake.split(' ');
+      const [hh, mm] = timePart.split(':').map(Number);
+      let h24 = hh;
+      if (ampm === 'AM' && hh === 12) h24 = 0;
+      if (ampm === 'PM' && hh !== 12) h24 = hh + 12;
+      auto.wake_b4_6 = h24 < 6 || (h24 === 6 && mm === 0);
+    } else {
+      auto.wake_b4_6 = false;
+    }
+
+    // steps_10k
+    auto.steps_10k = (day.steps || 0) >= 10000;
+
+    // water_3l (3 litres ≈ 12 glasses of 250ml)
+    auto.water_3l = (day.water || 0) >= 12;
+
+    // sleep_78
+    const sleepHrs = this.calcSleepDuration(new Date(dayKey));
+    auto.sleep_78 = sleepHrs >= 7 && sleepHrs <= 9;
+
+    // workout_2x: need 2 sessions each >= 30 mins logged
+    const workouts = day.workouts || [];
+    const qualifying = workouts.filter(w => w.mins >= 30);
+    auto.workout_2x = qualifying.length >= 2;
+
+    return auto;
+  },
+
+  _challengeTodayChecks() {
+    const c = this.state.challenge;
+    const todayKey = this.today();
+    if (!c.dailyChecks) c.dailyChecks = {};
+    if (!c.dailyChecks[todayKey]) c.dailyChecks[todayKey] = {};
+    return c.dailyChecks[todayKey];
+  },
+
+  renderChallenge() {
+    const root = document.getElementById('challenge-root');
+    if (!root) return;
+
+    const c = this.state.challenge;
+    if (!c) {
+      root.innerHTML = this._challengeSetupHTML();
+    } else if (c.status === 'active' || c.status === 'extended') {
+      root.innerHTML = this._challengeActiveHTML();
+    } else if (c.status === 'completed') {
+      root.innerHTML = this._challengeCompletedHTML();
+    }
+    lucide.createIcons();
+  },
+
+  /* ── Setup Screen ── */
+  _challengeSetupHTML() {
+    const dayOptions = [
+      { d:7,  label:'Starter' },
+      { d:14, label:'Builder' },
+      { d:21, label:'Warrior' },
+      { d:30, label:'Legend'  },
+      { d:45, label:'Titan'   },
+      { d:75, label:'Ironman' },
+    ];
+    return `
+      <div class="challenge-hero">
+        <div class="challenge-hero-badge">🔥 Hard Challenge</div>
+        <h1>Welcome to<br>Hard Challenge</h1>
+        <p>15 non-negotiable daily checks. Miss even one and you restart from Day 1. No excuses. No shortcuts.</p>
+      </div>
+
+      <div class="challenge-rules">
+        <div class="rules-header" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('.rules-chevron').style.transform = this.nextElementSibling.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';">
+          <h3>📋 The 15 Daily Rules <span style="color:var(--danger);font-size:0.7rem;margin-left:6px;">READ BEFORE STARTING</span></h3>
+          <i data-lucide="chevron-down" class="rules-chevron" style="width:18px;height:18px;color:var(--muted);transition:transform 0.2s;"></i>
+        </div>
+        <div class="rules-body">
+          ${this._CHALLENGE_CHECKS.map(r => `
+            <div class="rule-item">
+              <span class="rule-icon">${r.badge}</span>
+              <div class="rule-text"><strong>${r.label}</strong><br>${r.desc}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="challenge-rules" style="background:rgba(249,115,22,0.05); border-color:rgba(249,115,22,0.2);">
+        <div class="rules-header" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('.rules-chevron2').style.transform = this.nextElementSibling.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';">
+          <h3 style="color:#f97316;">⚠️ The Hard Rules</h3>
+          <i data-lucide="chevron-down" class="rules-chevron2" style="width:18px;height:18px;color:#f97316;transition:transform 0.2s;"></i>
+        </div>
+        <div class="rules-body">
+          <div class="rule-item"><span class="rule-icon">💀</span><div class="rule-text"><strong>Fail one check = Restart from Day 1.</strong> No partial credit. All 15 must be complete by end of day.</div></div>
+          <div class="rule-item"><span class="rule-icon">📅</span><div class="rule-text"><strong>Each day must be marked complete before midnight</strong> to count toward your streak.</div></div>
+          <div class="rule-item"><span class="rule-icon">🌅</span><div class="rule-text"><strong>Wake before 6 AM is only auto-checked from the "Now" button</strong> — not manual entry. Strict verification only.</div></div>
+          <div class="rule-item"><span class="rule-icon">🏃</span><div class="rule-text"><strong>Two workouts of 30+ mins each</strong> are required. One must be outdoor (mark it manually in the outdoor toggle).</div></div>
+          <div class="rule-item"><span class="rule-icon">🔄</span><div class="rule-text"><strong>After completing your initial goal</strong>, you can extend for more days OR end the challenge. If you choose to extend and fail, you restart from Day 1 again.</div></div>
+          <div class="rule-item"><span class="rule-icon">🎯</span><div class="rule-text"><strong>This is not about perfection</strong> — it's about building unbreakable discipline. Each restart is progress. Keep going.</div></div>
+        </div>
+      </div>
+
+      <div class="challenge-setup">
+        <h3>Choose Your Initial Goal</h3>
+        <div class="day-selector" id="day-selector">
+          ${dayOptions.map(o => `
+            <div class="day-option" onclick="app._selectChallengeDays(${o.d}, this)">
+              <span class="day-num">${o.d}</span>
+              <span class="day-label">${o.label}</span>
+            </div>`).join('')}
+        </div>
+        <input type="hidden" id="selected-challenge-days" value="21">
+        <div class="challenge-warning">
+          <span>⚠️</span>
+          <div>By starting, you agree to the rules above. A single missed check resets your entire streak back to Day 1. Are you ready?</div>
+        </div>
+        <div class="challenge-cta" style="margin-top:16px;">
+          <button class="btn-fire" onclick="app.startChallenge()">🔥 I Accept — Start Challenge</button>
+        </div>
+      </div>
+    `;
+    // Default selection
+    setTimeout(() => {
+      const opts = document.querySelectorAll('.day-option');
+      if (opts[2]) { opts[2].classList.add('selected'); document.getElementById('selected-challenge-days').value = 21; }
+    }, 0);
+  },
+
+  _selectChallengeDays(days, el) {
+    document.querySelectorAll('.day-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('selected-challenge-days').value = days;
+    this.haptic();
+  },
+
+  /* ── Active Challenge Screen ── */
+  _challengeActiveHTML() {
+    const c = this.state.challenge;
+    const todayKey = this.today();
+    const autoChecks = this._challengeAutoChecks(todayKey);
+    const checks = this._challengeTodayChecks();
+
+    // Merge auto checks into today's saved state
+    Object.entries(autoChecks).forEach(([id, val]) => {
+      if (val) checks[id] = true;
+    });
+
+    const day = c.currentStreak;
+    const goal = c.phase === 'extended' ? c.extendGoal : c.initialGoal;
+    const pct = Math.round((day / goal) * 100);
+    const circ = 2 * Math.PI * 36;
+    const offset = circ - (Math.min(pct, 100) / 100) * circ;
+
+    const completed = this._CHALLENGE_CHECKS.filter(ch => checks[ch.id]).length;
+    const total = this._CHALLENGE_CHECKS.length;
+    const checkPct = Math.round((completed / total) * 100);
+    const alreadyMarked = c.completedDays && c.completedDays.includes(todayKey);
+
+    const phaseLabel = c.status === 'extended'
+      ? `Extended +${c.extendGoal - c.initialGoal}d`
+      : `Phase 1 · ${c.initialGoal}d`;
+
+    return `
+      <div class="challenge-active-header">
+        <div class="challenge-streak-ring">
+          <svg width="90" height="90">
+            <circle cx="45" cy="45" r="36" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="7"/>
+            <circle cx="45" cy="45" r="36" fill="none" stroke="url(#fireGrad)" stroke-width="7"
+              stroke-linecap="round"
+              stroke-dasharray="${circ.toFixed(1)}"
+              stroke-dashoffset="${offset.toFixed(1)}"/>
+            <defs>
+              <linearGradient id="fireGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#f97316"/>
+                <stop offset="100%" stop-color="#ef4444"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="streak-label">
+            <span class="streak-num">${day}</span>
+            <span class="streak-sub">/ ${goal} days</span>
+          </div>
+        </div>
+        <div class="challenge-info">
+          <h3>Day ${day + 1} of ${goal}</h3>
+          <div class="challenge-meta">Started ${new Date(c.startDate).toLocaleDateString([], {month:'short', day:'numeric'})}</div>
+          <span class="challenge-phase">🔥 ${phaseLabel}</span>
+        </div>
+      </div>
+
+      ${alreadyMarked ? `
+        <div style="background:rgba(62,207,142,0.08); border:1px solid rgba(62,207,142,0.2); border-radius:14px; padding:14px 16px; display:flex; gap:10px; align-items:center; font-size:0.85rem; font-weight:700; color:var(--accent);">
+          ✅ Today's challenge marked complete! Keep it going tomorrow.
+        </div>` : ''}
+
+      <div class="challenge-checklist-section">
+        <div class="checklist-header">
+          <h3><i data-lucide="list-checks" style="width:16px;height:16px;"></i> Today's Checks — ${completed}/${total}</h3>
+          <div class="checklist-progress-bar"><div class="checklist-progress-fill" style="width:${checkPct}%;"></div></div>
+        </div>
+        <div class="checklist-items">
+          ${this._CHALLENGE_CHECKS.map(ch => {
+            const isChecked = !!checks[ch.id];
+            const isAuto = !ch.manual;
+            const isAutoFailed = isAuto && autoChecks[ch.id] === false;
+            return `
+              <div class="check-item ${isChecked ? 'completed' : ''} ${isAuto ? 'auto-check' : ''} ${isAutoFailed ? 'failed-auto' : ''}"
+                   ${ch.manual && !alreadyMarked ? `onclick="app.toggleChallengeCheck('${ch.id}')"` : ''}>
+                <div class="check-box">${isChecked ? '✓' : (isAutoFailed ? '✗' : '')}</div>
+                <div class="check-item-info">
+                  <div class="check-item-label">${ch.label}</div>
+                  <div class="check-item-desc">${ch.desc}${isAuto ? ' <span style="color:rgba(62,207,142,0.7);font-size:0.65rem;font-weight:700;">AUTO</span>' : ''}</div>
+                </div>
+                <span class="check-item-badge">${ch.badge}</span>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      ${!alreadyMarked ? `
+        <div class="challenge-warning">
+          <span>⚠️</span>
+          <div>Once you mark the day complete, it cannot be changed. Ensure ALL 15 checks are truly done before confirming.</div>
+        </div>
+        <div class="challenge-cta">
+          <button class="btn-fire" onclick="app.markChallengeDay()">✅ Mark Day ${day + 1} Complete</button>
+          <button class="btn-ghost" onclick="app.failChallengeDay()">❌ I Failed Today</button>
+        </div>` : `
+        <div class="challenge-cta">
+          <button class="btn-ghost" style="flex:1;" onclick="app.abandonChallenge()">🚪 Abandon Challenge</button>
+        </div>`}
+    `;
+  },
+
+  /* ── Completed Screen ── */
+  _challengeCompletedHTML() {
+    const c = this.state.challenge;
+    return `
+      <div class="challenge-hero">
+        <div class="challenge-hero-badge">🏆 Goal Achieved!</div>
+        <h1>Challenge<br>Complete!</h1>
+        <p>You completed ${c.initialGoal} days of the Hard Challenge. That's ${c.currentStreak} consecutive days of discipline!</p>
+      </div>
+      <div class="challenge-setup" style="text-align:center;">
+        <h3 style="margin-bottom:8px;">What's Next?</h3>
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:20px;">You can extend your streak for more days, or end the challenge with pride. Extending resets to zero if you miss a day.</p>
+        <div class="day-selector" id="extend-day-selector">
+          ${[7,14,21,30].map(d => `
+            <div class="day-option" onclick="app._selectExtendDays(${d}, this)">
+              <span class="day-num">+${d}</span>
+              <span class="day-label">more days</span>
+            </div>`).join('')}
+        </div>
+        <input type="hidden" id="extend-challenge-days" value="7">
+        <div class="challenge-cta" style="margin-top:16px;">
+          <button class="btn-fire" onclick="app.extendChallenge()">🔥 Extend Challenge</button>
+          <button class="btn-ghost" onclick="app.endChallenge()">🏁 End & Celebrate</button>
+        </div>
+      </div>
+    `;
+    setTimeout(() => {
+      const opts = document.querySelectorAll('.day-option');
+      if (opts[0]) { opts[0].classList.add('selected'); }
+    }, 0);
+  },
+
+  /* ── Actions ── */
+  startChallenge() {
+    const days = parseInt(document.getElementById('selected-challenge-days')?.value) || 21;
+    this.state.challenge = {
+      status: 'active',
+      phase: 'initial',
+      initialGoal: days,
+      extendGoal: null,
+      startDate: this.today(),
+      currentStreak: 0,
+      bestStreak: 0,
+      completedDays: [],
+      dailyChecks: {},
+    };
+    this._saveChallenge();
+    this.renderChallenge();
+    this.toast(`Challenge started! ${days} days 🔥`, '🔥');
+    this.haptic();
+  },
+
+  toggleChallengeCheck(id) {
+    const c = this.state.challenge;
+    if (!c) return;
+    const todayKey = this.today();
+    if (!c.dailyChecks[todayKey]) c.dailyChecks[todayKey] = {};
+    c.dailyChecks[todayKey][id] = !c.dailyChecks[todayKey][id];
+    this._saveChallenge();
+    this.renderChallenge();
+    this.haptic();
+  },
+
+  markChallengeDay() {
+    const c = this.state.challenge;
+    if (!c) return;
+    const todayKey = this.today();
+
+    // Ensure auto checks are applied
+    const auto = this._challengeAutoChecks(todayKey);
+    if (!c.dailyChecks[todayKey]) c.dailyChecks[todayKey] = {};
+    Object.entries(auto).forEach(([id, val]) => { if (val) c.dailyChecks[todayKey][id] = true; });
+
+    const checks = c.dailyChecks[todayKey];
+    const allPassed = this._CHALLENGE_CHECKS.every(ch => !!checks[ch.id]);
+
+    if (!allPassed) {
+      const missing = this._CHALLENGE_CHECKS.filter(ch => !checks[ch.id]).map(ch => ch.label);
+      const count = missing.length;
+      if (!confirm(`You still have ${count} unchecked: ${missing.slice(0,3).join(', ')}${count>3?'...':''}\n\nMarking as complete will still proceed but you should honestly answer — have you completed all 15? Press OK only if YES.`)) return;
+    }
+
+    // Mark complete
+    if (!c.completedDays.includes(todayKey)) c.completedDays.push(todayKey);
+    c.currentStreak++;
+    if (c.currentStreak > c.bestStreak) c.bestStreak = c.currentStreak;
+
+    const goal = c.status === 'extended' ? c.extendGoal : c.initialGoal;
+    if (c.currentStreak >= goal) {
+      if (c.status === 'extended') {
+        c.status = 'active'; // Let them mark complete again for the extended goal
+        c.phase = 'extended_complete';
+      } else {
+        c.status = 'completed';
+      }
+    }
+
+    this._saveChallenge();
+    this.renderChallenge();
+    this.toast(`Day ${c.currentStreak} complete! 🔥`, '🔥');
+    this.haptic();
+  },
+
+  failChallengeDay() {
+    if (!confirm('⚠️ Admitting failure takes courage. Your streak will reset to Day 1. Are you sure you failed today?')) return;
+    const c = this.state.challenge;
+    if (!c) return;
+
+    const prev = c.currentStreak;
+    c.currentStreak = 0;
+    c.status = c.phase === 'extended' ? 'active' : 'active';
+    c.phase = 'initial';
+    c.extendGoal = null;
+    // Clear today's checks
+    const todayKey = this.today();
+    if (c.dailyChecks[todayKey]) delete c.dailyChecks[todayKey];
+
+    this._saveChallenge();
+
+    // Shake animation
+    const root = document.getElementById('challenge-root');
+    root.classList.add('shake');
+    setTimeout(() => root.classList.remove('shake'), 600);
+
+    setTimeout(() => {
+      this.renderChallenge();
+      this.toast(`Reset to Day 1 from Day ${prev}. Rise again! 💪`, '💪');
+    }, 600);
+    this.haptic();
+  },
+
+  extendChallenge() {
+    const extraDays = parseInt(document.getElementById('extend-challenge-days')?.value) || 7;
+    const c = this.state.challenge;
+    if (!c) return;
+    c.status = 'extended';
+    c.phase = 'extended';
+    c.extendGoal = c.initialGoal + extraDays;
+    this._saveChallenge();
+    this.renderChallenge();
+    this.toast(`Extended for ${extraDays} more days! 🔥`, '🔥');
+    this.haptic();
+  },
+
+  _selectExtendDays(days, el) {
+    document.querySelectorAll('.day-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    const input = document.getElementById('extend-challenge-days');
+    if (input) input.value = days;
+    this.haptic();
+  },
+
+  abandonChallenge() {
+    if (!confirm('Abandon the challenge? Your progress will be cleared permanently.')) return;
+    this.state.challenge = null;
+    localStorage.removeItem('tw_challenge');
+    this.renderChallenge();
+    this.toast('Challenge ended. Start fresh anytime! 💪', '💪');
+    this.haptic();
+  },
+
+  endChallenge() {
+    if (!confirm('End the challenge and celebrate your achievement?')) return;
+    this.state.challenge = null;
+    localStorage.removeItem('tw_challenge');
+    this.renderChallenge();
+    this.toast('🏆 Challenge completed! Legend!', '🏆');
+    this.haptic();
   }
 };
 
