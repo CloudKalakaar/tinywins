@@ -787,6 +787,13 @@ select.glass-input option { background: #0d1a2e; color: var(--text); }
   gap: 20px;
 }
 
+#challenge-root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
 /* Hero Banner */
 .challenge-hero {
   background: linear-gradient(135deg, rgba(249,115,22,0.15) 0%, rgba(239,68,68,0.1) 50%, rgba(168,85,247,0.1) 100%);
