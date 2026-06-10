@@ -462,6 +462,11 @@ const app = {
       streak++;
       d.setDate(d.getDate()-1);
     }
+    // Also consider the Hard Challenge streak — show whichever is higher
+    const c = this.state.challenge;
+    if (c && (c.status === 'active' || c.status === 'extended') && c.currentStreak > streak) {
+      streak = c.currentStreak;
+    }
     return streak;
   },
 
