@@ -1343,7 +1343,7 @@ select.glass-input option { background: #0d1a2e; color: var(--text); }
   flex-wrap: wrap;
 }
 .schedule-row.visible { display: flex; }
-.schedule-row input {
+.schedule-row input[type="date"] {
   flex: 1;
   min-width: 140px;
   background: rgba(255,255,255,0.04);
@@ -1354,9 +1354,39 @@ select.glass-input option { background: #0d1a2e; color: var(--text); }
   font-size: 0.85rem;
   font-family: var(--body);
 }
-.schedule-row input::-webkit-calendar-picker-indicator {
+.schedule-row input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1) opacity(0.5);
 }
+/* Clock button - matches meal/sleep time picker style */
+.capture-time-btn {
+  flex: 1;
+  min-width: 140px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(168,85,247,0.07);
+  border: 1px solid rgba(168,85,247,0.2);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-family: var(--body);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.capture-time-btn:hover,
+.capture-time-btn:active {
+  background: rgba(168,85,247,0.14);
+  border-color: rgba(168,85,247,0.35);
+  color: #a855f7;
+}
+.capture-time-btn.time-set {
+  color: #a855f7;
+  border-color: rgba(168,85,247,0.35);
+  background: rgba(168,85,247,0.1);
+}
+.capture-time-btn svg { flex-shrink: 0; }
 .btn-capture-save {
   background: linear-gradient(135deg, #a855f7, #6366f1);
   color: #fff;

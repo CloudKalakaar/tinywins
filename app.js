@@ -2630,6 +2630,82 @@ Format your output as a valid JSON object with keys: "fitness" (focusing on thei
   _captureFinalText: '',
   _captureType: 'thought', // 'thought' | 'scheduled'
 
+  openCaptureTimePicker() {
+    // Grab any previously-set time from the hidden input
+    let h = new Date().getHours(), m = new Date().getMinutes();
+    let ampm = h >= 12 ? 'PM' : 'AM';
+    h = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+
+    const existingVal = document.getElementById('capture-time')?.value || '';
+    if (existingVal) {
+      // stored as HH:MM (24h) from previous set
+      const [hh, mm] = existingVal.split(':').map(Number);
+      ampm = hh >= 12 ? 'PM' : 'AM';
+      h = hh > 12 ? hh - 12 : (hh === 0 ? 12 : hh);
+      m = mm;
+    }
+
+    const html = `
+      <div class="clock-container">
+        <div class="clock-display">
+          <span id="clk-h" class="active" onclick="app._switchClockMode('hours')">${h}</span>:
+          <span id="clk-m" class="inactive" onclick="app._switchClockMode('mins')">${m.toString().padStart(2,'0')}</span>
+        </div>
+        <div class="clock-face" id="clock-face">
+          <div class="clock-center"></div>
+          <div class="clock-hand" id="clock-hand"></div>
+          <div id="clock-numbers"></div>
+        </div>
+        <div class="ampm-toggle">
+          <button id="ampm-am" class="ampm-btn ${ampm==='AM'?'active':''}" onclick="app._setAMPM('AM')">AM</button>
+          <button id="ampm-pm" class="ampm-btn ${ampm==='PM'?'active':''}" onclick="app._setAMPM('PM')">PM</button>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:4px;">
+          <button class="action-btn" style="flex:1" onclick="app._clearCaptureTime()">Clear</button>
+          <button class="action-btn primary" style="flex:2" onclick="app._saveCaptureClockTime()">Set Reminder Time</button>
+        </div>
+      </div>`;
+
+    this.openModal('Set Reminder Time', html);
+    this.app_temp_clock = { h, m, ampm, mode: 'hours', id: 'capture' };
+    this._renderClockFace();
+    this.setupClockEvents();
+  },
+
+  _saveCaptureClockTime() {
+    const c = this.app_temp_clock;
+    // Store as HH:MM 24h in hidden input
+    let h24 = c.h;
+    if (c.ampm === 'PM' && h24 < 12) h24 += 12;
+    if (c.ampm === 'AM' && h24 === 12) h24 = 0;
+    const time24 = `${h24.toString().padStart(2,'0')}:${c.m.toString().padStart(2,'0')}`;
+    const displayStr = `${c.h}:${c.m.toString().padStart(2,'0')} ${c.ampm}`;
+
+    // Update hidden input
+    const hiddenInput = document.getElementById('capture-time');
+    if (hiddenInput) hiddenInput.value = time24;
+
+    // Update the visible button
+    const btn = document.getElementById('capture-time-btn');
+    const display = document.getElementById('capture-time-display');
+    if (display) display.textContent = displayStr;
+    if (btn) btn.classList.add('time-set');
+
+    this.closeModal();
+    this.haptic();
+  },
+
+  _clearCaptureTime() {
+    const hiddenInput = document.getElementById('capture-time');
+    if (hiddenInput) hiddenInput.value = '';
+    const display = document.getElementById('capture-time-display');
+    if (display) display.textContent = 'Set Time (optional)';
+    const btn = document.getElementById('capture-time-btn');
+    if (btn) btn.classList.remove('time-set');
+    this.closeModal();
+    this.haptic();
+  },
+
   _saveCaptures() {
     localStorage.setItem('tw_captures', JSON.stringify(this.state.captures));
   },
@@ -2795,6 +2871,13 @@ Format your output as a valid JSON object with keys: "fitness" (focusing on thei
     if (tbox)  { tbox.classList.remove('visible'); tbox.innerHTML = '<span id="transcript-final"></span><span class="interim" id="transcript-interim"></span>'; }
     if (edit)  edit.value = '';
     this._captureFinalText = '';
+    // Reset the clock button
+    const hiddenInput = document.getElementById('capture-time');
+    const display = document.getElementById('capture-time-display');
+    const btn = document.getElementById('capture-time-btn');
+    if (hiddenInput) hiddenInput.value = '';
+    if (display) display.textContent = 'Set Time (optional)';
+    if (btn) btn.classList.remove('time-set');
     this.haptic();
   },
 
