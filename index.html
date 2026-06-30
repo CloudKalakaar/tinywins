@@ -609,6 +609,55 @@
     <span id="toast-msg">Win logged!</span>
   </div>
 
+  <!-- ═══════════ WHAT'S NEW OVERLAY ═══════════ -->
+  <div id="whats-new-overlay" class="wn-overlay hidden" onclick="app._dismissWhatsNew(event)">
+    <div class="wn-sheet" onclick="event.stopPropagation()">
+      <div class="wn-hero">
+        <div class="wn-badge">✨ What's New</div>
+        <h2 class="wn-title">June 2026 Update</h2>
+        <p class="wn-subtitle">Here's everything we've added to make TinyWins even better for you.</p>
+      </div>
+
+      <div class="wn-features">
+
+        <div class="wn-feature">
+          <div class="wn-icon" style="background:linear-gradient(135deg,#a855f7,#6366f1);">🎙️</div>
+          <div class="wn-text">
+            <strong>Capture Tab</strong>
+            <span>Tap the mic and speak — your voice is instantly converted to text and saved as a thought or reminder.</span>
+          </div>
+        </div>
+
+        <div class="wn-feature">
+          <div class="wn-icon" style="background:linear-gradient(135deg,#38bdf8,#6366f1);">📅</div>
+          <div class="wn-text">
+            <strong>Scheduled Reminders</strong>
+            <span>Add any thought to your calendar with a date & time. A reminder banner appears on Today when it's due.</span>
+          </div>
+        </div>
+
+        <div class="wn-feature">
+          <div class="wn-icon" style="background:linear-gradient(135deg,#f97316,#ef4444);">🔥</div>
+          <div class="wn-text">
+            <strong>Challenge Streak in Header</strong>
+            <span>Your Hard Challenge streak now syncs to the 🔥 badge on the home page — one unified streak to rule them all.</span>
+          </div>
+        </div>
+
+        <div class="wn-feature">
+          <div class="wn-icon" style="background:linear-gradient(135deg,#22c55e,#16a34a);">💭</div>
+          <div class="wn-text">
+            <strong>Floating Thoughts</strong>
+            <span>Ideas that don't need a date live in a dedicated section — a private second brain for spontaneous moments.</span>
+          </div>
+        </div>
+
+      </div>
+
+      <button class="wn-cta" onclick="app.dismissWhatsNew()">Let's Go 🚀</button>
+    </div>
+  </div>
+
   <script src="app.js"></script>
   <script>lucide.createIcons();</script>
 </body>

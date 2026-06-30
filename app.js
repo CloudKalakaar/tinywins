@@ -66,6 +66,7 @@ const app = {
     this.checkAuth();
     this.startCountdownTimer();
     this.checkTodayReminders();
+    this.checkWhatsNew();
   },
 
   applyUpdate() {
@@ -74,6 +75,30 @@ const app = {
     } else {
       window.location.reload(true);
     }
+  },
+
+  /* ── What's New one-time popup ── */
+  checkWhatsNew() {
+    const CURRENT_VER = 'v2026063001';
+    if (localStorage.getItem('tw_whats_new_seen') === CURRENT_VER) return;
+    setTimeout(() => {
+      const el = document.getElementById('whats-new-overlay');
+      if (el) el.classList.remove('hidden');
+    }, 700);
+  },
+
+  dismissWhatsNew() {
+    localStorage.setItem('tw_whats_new_seen', 'v2026063001');
+    const el = document.getElementById('whats-new-overlay');
+    if (!el) return;
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 0.2s ease';
+    setTimeout(() => el.classList.add('hidden'), 220);
+    this.haptic();
+  },
+
+  _dismissWhatsNew(e) {
+    if (e.target.id === 'whats-new-overlay') this.dismissWhatsNew();
   },
 
   today() { return this.dateKey(new Date()); },
