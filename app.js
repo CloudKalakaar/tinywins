@@ -65,6 +65,7 @@ const app = {
     this.initNotifications();
     this.checkAuth();
     this.startCountdownTimer();
+    this.checkTodayReminders();
   },
 
   applyUpdate() {
@@ -168,6 +169,7 @@ const app = {
     if (t) this.state.targets = { ...this.state.targets, ...JSON.parse(t) };
     this.state.countdowns = JSON.parse(localStorage.getItem('tw_countdowns') || '[]');
     this.state.challenge = JSON.parse(localStorage.getItem('tw_challenge') || 'null');
+    this.state.captures = JSON.parse(localStorage.getItem('tw_captures') || '[]');
   },
 
   ensureDay(k) {
@@ -1318,7 +1320,7 @@ Format your output as a valid JSON object with keys: "fitness" (focusing on thei
     t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'), 2500);
   },
   switchTab(t) {
-    ['dashboard','monthly','energy','settings','challenge'].forEach(v => {
+    ['dashboard','monthly','energy','settings','challenge','capture'].forEach(v => {
       document.getElementById(`view-${v}`).classList.add('hidden');
       document.getElementById(`nav-${v}`).classList.remove('active');
     });
@@ -1327,6 +1329,7 @@ Format your output as a valid JSON object with keys: "fitness" (focusing on thei
     if (t === 'monthly') this.renderCalendar();
     if (t === 'energy') this.renderEnergyDashboard();
     if (t === 'challenge') this.renderChallenge();
+    if (t === 'capture') this.renderCapture();
     this.haptic();
   },
   
@@ -2616,6 +2619,380 @@ Format your output as a valid JSON object with keys: "fitness" (focusing on thei
     this.renderChallenge();
     this.toast('🏆 Challenge completed! Legend!', '🏆');
     this.haptic();
+  },
+
+  /* ══════════════════════════════════════════
+     CAPTURE — Voice Notes & Reminders
+  ══════════════════════════════════════════ */
+
+  _captureRecognition: null,
+  _captureIsRecording: false,
+  _captureFinalText: '',
+  _captureType: 'thought', // 'thought' | 'scheduled'
+
+  _saveCaptures() {
+    localStorage.setItem('tw_captures', JSON.stringify(this.state.captures));
+  },
+
+  /* ── Speech Recognition ── */
+  toggleCapture() {
+    if (this._captureIsRecording) {
+      this._stopCapture();
+    } else {
+      this._startCapture();
+    }
+  },
+
+  _startCapture() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      // Fallback: just open save panel with empty text for manual typing
+      this._captureFinalText = '';
+      this._showSaveOptions('');
+      this.toast('Voice not supported — type your thought below', '✏️');
+      return;
+    }
+
+    this._captureRecognition = new SpeechRecognition();
+    this._captureRecognition.continuous = true;
+    this._captureRecognition.interimResults = true;
+    this._captureRecognition.lang = 'en-IN'; // Works well for Indian English
+
+    const finalEl   = document.getElementById('transcript-final');
+    const interimEl = document.getElementById('transcript-interim');
+    const box       = document.getElementById('transcript-box');
+    let finalAccum  = '';
+
+    this._captureRecognition.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          finalAccum += e.results[i][0].transcript + ' ';
+        } else {
+          interim += e.results[i][0].transcript;
+        }
+      }
+      if (finalEl) finalEl.textContent = finalAccum;
+      if (interimEl) interimEl.textContent = interim;
+    };
+
+    this._captureRecognition.onend = () => {
+      this._captureFinalText = finalAccum.trim();
+      this._stopCaptureUI();
+      if (this._captureFinalText) {
+        this._showSaveOptions(this._captureFinalText);
+      }
+    };
+
+    this._captureRecognition.onerror = (e) => {
+      this._stopCaptureUI();
+      if (e.error !== 'aborted') {
+        this._captureFinalText = finalAccum.trim();
+        if (this._captureFinalText) {
+          this._showSaveOptions(this._captureFinalText);
+        } else {
+          this.toast('Could not hear clearly. Try again.', '🎤');
+        }
+      }
+    };
+
+    this._captureRecognition.start();
+    this._captureIsRecording = true;
+
+    // UI
+    const orb   = document.getElementById('mic-orb-btn');
+    const pulse = document.getElementById('mic-pulse');
+    const label = document.getElementById('mic-label');
+    const tbox  = document.getElementById('transcript-box');
+    if (orb)   orb.classList.add('recording');
+    if (pulse) pulse.classList.add('active');
+    if (label) { label.textContent = 'Listening… tap to stop'; label.className = 'mic-label recording-label'; }
+    if (tbox)  { tbox.classList.add('visible'); tbox.innerHTML = '<span id="transcript-final"></span><span class="interim" id="transcript-interim"></span>'; }
+    // Hide save options while recording
+    const opts = document.getElementById('capture-save-options');
+    if (opts) opts.classList.remove('visible');
+    this.haptic();
+  },
+
+  _stopCapture() {
+    if (this._captureRecognition) {
+      this._captureRecognition.stop();
+    }
+    this._stopCaptureUI();
+  },
+
+  _stopCaptureUI() {
+    this._captureIsRecording = false;
+    const orb   = document.getElementById('mic-orb-btn');
+    const pulse = document.getElementById('mic-pulse');
+    const label = document.getElementById('mic-label');
+    if (orb)   orb.classList.remove('recording');
+    if (pulse) pulse.classList.remove('active');
+    if (label) { label.textContent = 'Tap to capture a thought'; label.className = 'mic-label'; }
+  },
+
+  _showSaveOptions(text) {
+    const opts  = document.getElementById('capture-save-options');
+    const edit  = document.getElementById('capture-edit-text');
+    const tbox  = document.getElementById('transcript-box');
+    if (edit)  edit.value = text;
+    if (opts)  opts.classList.add('visible');
+    if (tbox)  tbox.classList.remove('visible');
+    // Default selection
+    this._captureType = 'thought';
+    this.selectCaptureType('thought');
+    // Set today's date as default for calendar
+    const dateInput = document.getElementById('capture-date');
+    if (dateInput) dateInput.value = this.today();
+  },
+
+  selectCaptureType(type) {
+    this._captureType = type;
+    const tBtn = document.getElementById('btn-type-thought');
+    const sBtn = document.getElementById('btn-type-scheduled');
+    const row  = document.getElementById('schedule-row');
+    if (tBtn) { tBtn.className = 'save-type-btn' + (type === 'thought' ? ' selected-thought' : ''); }
+    if (sBtn) { sBtn.className = 'save-type-btn' + (type === 'scheduled' ? ' selected-scheduled' : ''); }
+    if (row)  { row.className = 'schedule-row' + (type === 'scheduled' ? ' visible' : ''); }
+  },
+
+  saveCapture() {
+    const text = (document.getElementById('capture-edit-text')?.value || '').trim();
+    if (!text) return this.toast('Nothing to save!', '⚠️');
+
+    const entry = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      type: this._captureType,
+      text,
+      createdAt: Date.now(),
+      done: false
+    };
+
+    if (this._captureType === 'scheduled') {
+      const d = document.getElementById('capture-date')?.value;
+      const t = document.getElementById('capture-time')?.value;
+      if (!d) return this.toast('Pick a date for the reminder', '📅');
+      entry.date = d;
+      entry.time = t || '';
+    }
+
+    this.state.captures.unshift(entry);
+    this._saveCaptures();
+    this.discardCapture();
+    this.renderCapture();
+    this.toast(
+      entry.type === 'scheduled' ? 'Reminder saved! 📅' : 'Thought captured! 💭',
+      entry.type === 'scheduled' ? '📅' : '💭'
+    );
+    this.haptic();
+  },
+
+  discardCapture() {
+    const opts  = document.getElementById('capture-save-options');
+    const tbox  = document.getElementById('transcript-box');
+    const edit  = document.getElementById('capture-edit-text');
+    if (opts)  opts.classList.remove('visible');
+    if (tbox)  { tbox.classList.remove('visible'); tbox.innerHTML = '<span id="transcript-final"></span><span class="interim" id="transcript-interim"></span>'; }
+    if (edit)  edit.value = '';
+    this._captureFinalText = '';
+    this.haptic();
+  },
+
+  deleteCaptureEntry(id) {
+    this.state.captures = this.state.captures.filter(c => c.id !== id);
+    this._saveCaptures();
+    this.renderCapture();
+    this.haptic();
+  },
+
+  toggleCaptureDone(id) {
+    const c = this.state.captures.find(c => c.id === id);
+    if (c) c.done = !c.done;
+    this._saveCaptures();
+    this.renderCapture();
+    this.haptic();
+  },
+
+  /* ── Render Capture Tab ── */
+  renderCapture() {
+    this._renderCaptureBanner();
+    this._renderScheduledSection();
+    this._renderThoughtsSection();
+  },
+
+  _renderCaptureBanner() {
+    // Also show/hide reminder banner in the capture tab header slot
+    const slot = document.getElementById('capture-banner-slot');
+    if (!slot) return;
+    const today = this.today();
+    const todayItems = (this.state.captures || []).filter(
+      c => c.type === 'scheduled' && c.date === today && !c.done
+    );
+    if (todayItems.length === 0) { slot.innerHTML = ''; return; }
+    const names = todayItems.map(c => c.text.slice(0, 40) + (c.text.length > 40 ? '…' : '')).join(' · ');
+    slot.innerHTML = `
+      <div class="capture-reminder-banner" onclick="app.switchTab('capture')">
+        <span class="banner-icon">🔔</span>
+        <div class="banner-content">
+          <h4>${todayItems.length} reminder${todayItems.length > 1 ? 's' : ''} today</h4>
+          <p>${names}</p>
+        </div>
+      </div>`;
+  },
+
+  _renderScheduledSection() {
+    const el = document.getElementById('capture-scheduled-section');
+    if (!el) return;
+    const today = this.today();
+    const scheduled = (this.state.captures || [])
+      .filter(c => c.type === 'scheduled')
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+        return (a.time || '23:59') < (b.time || '23:59') ? -1 : 1;
+      });
+
+    if (scheduled.length === 0) {
+      el.innerHTML = `
+        <div class="capture-section-hdr"><h3>📅 Scheduled Reminders</h3></div>
+        <div class="capture-empty">
+          <div class="ce-icon">📅</div>
+          <p>No reminders yet.<br>Capture a thought and add it to your calendar.</p>
+        </div>`;
+      return;
+    }
+
+    // Group by date
+    const groups = {};
+    scheduled.forEach(c => {
+      if (!groups[c.date]) groups[c.date] = [];
+      groups[c.date].push(c);
+    });
+
+    let html = `<div class="capture-section-hdr"><h3>📅 Scheduled Reminders</h3><span class="capture-count">${scheduled.length}</span></div>`;
+
+    Object.keys(groups).sort().forEach(date => {
+      const isToday = date === today;
+      const isPast  = date < today;
+      const d = new Date(date + 'T12:00:00');
+      const label = isToday
+        ? 'Today'
+        : d.toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' });
+
+      html += `<div class="reminder-day-group">
+        <div class="reminder-day-label ${isToday ? 'today-label' : ''}">
+          <div class="rday-dot"></div>${label}${isPast && !isToday ? ' <span style="color:var(--danger);font-size:0.65rem;margin-left:4px;">Past</span>' : ''}
+        </div>`;
+
+      groups[date].forEach(c => {
+        const timeLabel = c.time
+          ? this._fmt24to12(c.time)
+          : (isToday ? 'Anytime today' : 'No time set');
+        html += `
+          <div class="reminder-card ${isToday ? 'is-today' : ''} ${c.done ? 'is-done' : ''}">
+            <div class="rc-time">${timeLabel}</div>
+            <div class="rc-text">${this._escHtml(c.text)}</div>
+            <div class="rc-actions">
+              <button class="rc-check-btn" onclick="app.toggleCaptureDone('${c.id}')" title="${c.done ? 'Unmark' : 'Mark done'}">${c.done ? '↩️' : '✅'}</button>
+              <button class="rc-del-btn" onclick="app.deleteCaptureEntry('${c.id}')" title="Delete">🗑️</button>
+            </div>
+          </div>`;
+      });
+      html += '</div>';
+    });
+
+    el.innerHTML = html;
+  },
+
+  _renderThoughtsSection() {
+    const el = document.getElementById('capture-thoughts-section');
+    if (!el) return;
+    const thoughts = (this.state.captures || []).filter(c => c.type === 'thought');
+
+    if (thoughts.length === 0) {
+      el.innerHTML = `
+        <div class="capture-section-hdr"><h3>💭 Floating Thoughts</h3></div>
+        <div class="capture-empty">
+          <div class="ce-icon">💭</div>
+          <p>Your spontaneous ideas live here.<br>Tap the mic and speak your mind.</p>
+        </div>`;
+      return;
+    }
+
+    let html = `<div class="capture-section-hdr"><h3>💭 Floating Thoughts</h3><span class="capture-count">${thoughts.length}</span></div><div class="thought-cards">`;
+
+    thoughts.forEach(c => {
+      const when = this._relativeTime(c.createdAt);
+      html += `
+        <div class="thought-card">
+          <div class="tc-icon">💭</div>
+          <div class="tc-body">
+            <div class="tc-text">${this._escHtml(c.text)}</div>
+            <div class="tc-time">${when}</div>
+          </div>
+          <button class="tc-del" onclick="app.deleteCaptureEntry('${c.id}')" title="Delete">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
+        </div>`;
+    });
+
+    html += '</div>';
+    el.innerHTML = html;
+  },
+
+  /* ── Reminder banner on Today tab ── */
+  checkTodayReminders() {
+    const today = this.today();
+    const todayItems = (this.state.captures || []).filter(
+      c => c.type === 'scheduled' && c.date === today && !c.done
+    );
+    if (todayItems.length === 0) return;
+
+    // Inject reminder banner at the top of the dashboard view
+    const dashboard = document.getElementById('view-dashboard');
+    if (!dashboard) return;
+
+    // Avoid duplicate banners
+    if (document.getElementById('today-reminder-banner')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'today-reminder-banner';
+    banner.className = 'capture-reminder-banner';
+    banner.style.margin = '16px 16px 0';
+    banner.style.cursor = 'pointer';
+    const names = todayItems.map(c => c.text.slice(0, 50) + (c.text.length > 50 ? '…' : '')).join(', ');
+    banner.innerHTML = `
+      <span class="banner-icon">🔔</span>
+      <div class="banner-content">
+        <h4>${todayItems.length} reminder${todayItems.length > 1 ? 's' : ''} for today</h4>
+        <p>${names}</p>
+      </div>`;
+    banner.onclick = () => this.switchTab('capture');
+    dashboard.insertBefore(banner, dashboard.firstChild);
+  },
+
+  /* ── Helpers ── */
+  _fmt24to12(t) {
+    if (!t) return '';
+    const [hh, mm] = t.split(':').map(Number);
+    const ampm = hh >= 12 ? 'PM' : 'AM';
+    const h12  = hh % 12 || 12;
+    return `${h12}:${String(mm).padStart(2,'0')}\n${ampm}`;
+  },
+
+  _relativeTime(ts) {
+    const diff = Date.now() - ts;
+    const mins  = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days  = Math.floor(diff / 86400000);
+    if (mins < 1)  return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7)  return `${days}d ago`;
+    return new Date(ts).toLocaleDateString([], { month:'short', day:'numeric' });
+  },
+
+  _escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 };
 

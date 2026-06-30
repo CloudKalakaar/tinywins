@@ -517,6 +517,56 @@
       <div id="challenge-root"></div>
     </main>
 
+    <!-- ═══════════ CAPTURE VIEW ═══════════ -->
+    <main id="view-capture" class="hidden capture-view">
+      <!-- Reminder banner injected by JS when today has reminders -->
+      <div id="capture-banner-slot"></div>
+      <!-- Mic + save area -->
+      <div class="capture-mic-section">
+        <div class="mic-orb-wrap">
+          <div class="mic-orb-pulse" id="mic-pulse"></div>
+          <button class="mic-orb" id="mic-orb-btn" onclick="app.toggleCapture()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="22"/>
+            </svg>
+          </button>
+        </div>
+        <span class="mic-label" id="mic-label">Tap to capture a thought</span>
+      </div>
+
+      <!-- Live transcript -->
+      <div class="transcript-box" id="transcript-box">
+        <span id="transcript-final"></span><span class="interim" id="transcript-interim"></span>
+      </div>
+
+      <!-- Save options after recording -->
+      <div class="capture-save-options" id="capture-save-options">
+        <textarea id="capture-edit-text" placeholder="Edit your captured text..."></textarea>
+        <div class="save-type-row">
+          <button class="save-type-btn" id="btn-type-thought" onclick="app.selectCaptureType('thought')">
+            💭 Save as Thought
+          </button>
+          <button class="save-type-btn" id="btn-type-scheduled" onclick="app.selectCaptureType('scheduled')">
+            📅 Add to Calendar
+          </button>
+        </div>
+        <div class="schedule-row" id="schedule-row">
+          <input type="date" id="capture-date" />
+          <input type="time" id="capture-time" placeholder="Time (optional)" />
+        </div>
+        <button class="btn-capture-save" onclick="app.saveCapture()">💾 Save</button>
+        <button class="btn-capture-discard" onclick="app.discardCapture()">✕ Discard</button>
+      </div>
+
+      <!-- Scheduled Reminders list -->
+      <div id="capture-scheduled-section"></div>
+
+      <!-- Floating Thoughts list -->
+      <div id="capture-thoughts-section"></div>
+    </main>
+
     <nav class="bottom-nav">
       <button id="nav-dashboard" class="nav-item active" onclick="app.switchTab('dashboard')">
         <i data-lucide="layout-dashboard"></i><span>Today</span>
@@ -532,6 +582,9 @@
       </button>
       <button id="nav-challenge" class="nav-item" onclick="app.switchTab('challenge')">
         <i data-lucide="flame"></i><span>Challenge</span>
+      </button>
+      <button id="nav-capture" class="nav-item" onclick="app.switchTab('capture')">
+        <i data-lucide="mic"></i><span>Capture</span>
       </button>
     </nav>
   </div>
